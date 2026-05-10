@@ -1,0 +1,47 @@
+/* src/app/globals.css */
+:root {
+  /* Light Theme Variables */
+  --primary-blue: #1e60a4;
+  --primary-blue-hover: #15457a;
+  --light-bg: #f4f7f6;
+  --white: #ffffff;
+  --text-dark: #333333;
+  --text-gray: #777777;
+  --border-color: #e0e0e0;
+  --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  --input-bg: #ffffff;
+}
+
+/* Dark Theme Variables */
+[data-theme="dark"] {
+  --primary-blue: #4a90e2;
+  --primary-blue-hover: #357abd;
+  --light-bg: #121212;
+  --white: #1e1e1e;
+  --text-dark: #f5f5f5;
+  --text-gray: #aaaaaa;
+  --border-color: #333333;
+  --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  --input-bg: #2a2a2a;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: var(--light-bg);
+  color: var(--text-dark);
+  /* This adds the smooth fading transition when toggling themes */
+  transition:
+    background-color 0.4s ease,
+    color 0.4s ease;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
