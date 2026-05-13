@@ -51,6 +51,38 @@ app.get("/api/requests", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+// 3. UPDATE request status (Used by Admin)
+app.put("/api/requests/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // Expects "Pending", "In Progress", or "Resolved"
+
+    const updateRequest = await pool.query(
+      "UPDATE requests SET status = $1 WHERE id = $2 RETURNING *",
+      [status, id],
+    );
+
+    res.json(updateRequest.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+// 4. GET requests for a specific student (Used by Student Dashboard)
+app.get("/api/requests/student/:studentId", async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const studentRequests = await pool.query(
+      "SELECT * FROM requests WHERE student_id = $1 ORDER BY created_at DESC",
+      [studentId],
+    );
+    res.json(studentRequests.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
 
 // Start the server
 const PORT = process.env.PORT || 5000;
