@@ -14,12 +14,40 @@ export default function ReportIssue() {
     urgency: "Medium",
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here we would normally send data to the backend.
-    // For now, we just show the success screen.
-    setIsSubmitted(true);
+
+    try {
+      // We use fetch to send a POST request to our new Node.js server
+      const response = await fetch("http://localhost:5000/api/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          student_id: 1, // We hardcode '1' for now (Siphesihle's ID in your database)
+          category: formData.category,
+          room: formData.room,
+          description: formData.description,
+          urgency: formData.urgency,
+        }),
+      });
+
+      if (response.ok) {
+        // If the server says "200 OK", we show the success screen!
+        setIsSubmitted(true);
+      } else {
+        alert("Failed to submit the request. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error submitting request:", error);
+      alert(
+        "Could not connect to the server. Make sure the backend is running!",
+      );
+    }
   };
+
+  // (Keep the rest of your component the same)
 
   const resetForm = () => {
     setFormData({ category: "", room: "", description: "", urgency: "Medium" });
