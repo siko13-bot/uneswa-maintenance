@@ -1,37 +1,42 @@
 // src/app/student/requests/page.js
 "use client";
+import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
 import styles from "../../styles/Dashboard.module.css";
 
 export default function MyRequests() {
-  const myRequests = [
-    {
-      id: "REQ-001",
-      issue: "Broken Tap",
-      date: "May 08, 2026",
-      status: "In Progress",
-      desc: "Tap in bathroom leaking continuously.",
-    },
-    {
-      id: "REQ-002",
-      issue: "Lightbulb blown",
-      date: "May 01, 2026",
-      status: "Resolved",
-      desc: "Main bedroom light is dead.",
-    },
-    {
-      id: "REQ-003",
-      issue: "Window latch broken",
-      date: "May 09, 2026",
-      status: "Pending",
-      desc: "Cannot lock the window on the ground floor.",
-    },
-  ];
+  const [myRequests, setMyRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMyRequests = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/requests/student/1");
+        if (res.ok) {
+          const data = await res.json();
+          setMyRequests(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch requests", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMyRequests();
+  }, []);
 
   const getStatusClass = (status) => {
     if (status === "Pending") return styles.statusPending;
     if (status === "In Progress") return styles.statusInProgress;
     return styles.statusResolved;
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   };
 
   return (
@@ -40,40 +45,56 @@ export default function MyRequests() {
 
       <div className={styles.card}>
         <div className={styles.listContainer}>
-          {myRequests.map((req) => (
-            <div
-              key={req.id}
-              className={styles.listItem}
-              style={{ flexDirection: "column", alignItems: "flex-start" }}
-            >
+          {loading ? (
+            <p>Loading your requests...</p>
+          ) : myRequests.length === 0 ? (
+            <p>You have no maintenance requests.</p>
+          ) : (
+            myRequests.map((req) => (
               <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  marginBottom: "10px",
-                }}
+                key={req.id}
+                className={styles.listItem}
+                style={{ flexDirection: "column", alignItems: "flex-start" }}
               >
-                <h4 style={{ margin: 0, color: "#1e60a4" }}>
-                  {req.issue}{" "}
-                  <span style={{ fontSize: "12px", color: "#999" }}>
-                    ({req.id})
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <h4 style={{ margin: 0, color: "#1e60a4" }}>
+                    {req.category} in {req.room}
+                  </h4>
+                  <span className={getStatusClass(req.status)}>
+                    {req.status}
                   </span>
-                </h4>
-                <span className={getStatusClass(req.status)}>{req.status}</span>
+                </div>
+                <p
+                  style={{
+                    margin: "0 0 10px 0",
+                    color: "#555",
+                    fontSize: "14px",
+                  }}
+                >
+                  {req.description}
+                </p>
+                <div style={{ display: "flex", gap: "15px" }}>
+                  <small style={{ color: "#999" }}>
+                    Reported: {formatDate(req.created_at)}
+                  </small>
+                  <small
+                    style={{
+                      color: req.urgency === "High" ? "#e74c3c" : "#999",
+                    }}
+                  >
+                    Urgency: {req.urgency}
+                  </small>
+                </div>
               </div>
-              <p
-                style={{
-                  margin: "0 0 10px 0",
-                  color: "#555",
-                  fontSize: "14px",
-                }}
-              >
-                {req.desc}
-              </p>
-              <small style={{ color: "#999" }}>Reported on: {req.date}</small>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </DashboardLayout>

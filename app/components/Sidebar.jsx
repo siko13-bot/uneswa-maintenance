@@ -8,9 +8,9 @@ import {
   Megaphone,
   HelpCircle,
   LogOut,
+  ClipboardList,
 } from "lucide-react";
 import styles from "../styles/Components.module.css";
-
 export default function Sidebar({ role }) {
   return (
     <aside className={styles.sidebar}>
@@ -43,6 +43,9 @@ export default function Sidebar({ role }) {
         </Link>
         <Link href={`/${role}/help`} className={styles.navItem}>
           <HelpCircle size={20} /> Help & Support
+        </Link>
+        <Link href="/admin/audit" className={styles.navItem}>
+          <ClipboardList size={20} /> Hostel Audits
         </Link>
       </nav>
 
