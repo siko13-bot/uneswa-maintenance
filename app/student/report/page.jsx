@@ -4,53 +4,69 @@ import { useState } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
 import styles from "../../styles/Dashboard.module.css";
 import { Wrench, CheckCircle } from "lucide-react";
+import toast from "react-hot-toast"; // Assuming you kept the toaster!
 
 export default function ReportIssue() {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     category: "",
     room: "",
     description: "",
     urgency: "Medium",
+    image: null, // New state for the file
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      // We use fetch to send a POST request to our new Node.js server
-      const response = await fetch("http://localhost:5000/api/requests", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          student_id: 1, // We hardcode '1' for now (Siphesihle's ID in your database)
-          category: formData.category,
-          room: formData.room,
-          description: formData.description,
-          urgency: formData.urgency,
-        }),
-      });
-
-      if (response.ok) {
-        // If the server says "200 OK", we show the success screen!
-        setIsSubmitted(true);
-      } else {
-        alert("Failed to submit the request. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error submitting request:", error);
-      alert(
-        "Could not connect to the server. Make sure the backend is running!",
-      );
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({ ...formData, image: e.target.files[0] });
     }
   };
 
-  // (Keep the rest of your component the same)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
+    const toastId = toast.loading("Submitting request...");
+
+    const submitData = new FormData();
+
+    submitData.append("student_id", 1);
+    submitData.append("category", formData.category);
+    submitData.append("room", formData.room);
+    submitData.append("description", formData.description);
+    submitData.append("urgency", formData.urgency);
+
+    if (formData.image) {
+      submitData.append("image", formData.image);
+    }
+    try {
+      const response = await fetch("http://127.0.0.1:5000/api/requests", {
+        method: "POST",
+        body: submitData,
+      });
+
+      if (response.ok) {
+        toast.success("Issue reported successfully!", { id: toastId });
+        setIsSubmitted(true);
+      } else {
+        toast.error("Failed to submit the request.", { id: toastId });
+      }
+    } catch (error) {
+      console.error("Error submitting request:", error);
+      toast.error("Could not connect to the server.", { id: toastId });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   const resetForm = () => {
-    setFormData({ category: "", room: "", description: "", urgency: "Medium" });
+    setFormData({
+      category: "",
+      room: "",
+      description: "",
+      urgency: "Medium",
+      image: null,
+    });
     setIsSubmitted(false);
   };
 
@@ -72,7 +88,6 @@ export default function ReportIssue() {
             <h2>Issue Reported Successfully!</h2>
             <p>
               Your maintenance request has been forwarded to the administration.
-              You can track its status in "My Requests".
             </p>
             <button
               onClick={resetForm}
@@ -94,18 +109,10 @@ export default function ReportIssue() {
                 }
               >
                 <option value="">Select a category...</option>
-                <option value="Plumbing">
-                  Plumbing (e.g., Leaking tap, blocked toilet)
-                </option>
-                <option value="Electrical">
-                  Electrical (e.g., Faulty lights, broken socket)
-                </option>
-                <option value="Structural">
-                  Structural (e.g., Broken window, damaged door)
-                </option>
-                <option value="Appliance">
-                  Appliance (e.g., Stove, fridge not working)
-                </option>
+                <option value="Plumbing">Plumbing</option>
+                <option value="Electrical">Electrical</option>
+                <option value="Structural">Structural</option>
+                <option value="Appliance">Appliance</option>
                 <option value="Other">Other</option>
               </select>
             </div>
@@ -152,8 +159,28 @@ export default function ReportIssue() {
               ></textarea>
             </div>
 
-            <button type="submit" className={styles.primaryBtn}>
-              <Wrench size={18} /> Submit Request
+            {/* NEW FILE UPLOAD FIELD */}
+            <div className={styles.formGroup}>
+              <label>Attach Image (Optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                style={{
+                  padding: "8px",
+                  border: "1px dashed #ccc",
+                  background: "#f9f9f9",
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className={styles.primaryBtn}
+              disabled={isSubmitting}
+            >
+              <Wrench size={18} />{" "}
+              {isSubmitting ? "Submitting..." : "Submit Request"}
             </button>
           </form>
         )}
