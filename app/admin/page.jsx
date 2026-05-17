@@ -13,29 +13,42 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-
+import toast from "react-hot-toast";
+import Link from "next/link";
+import ReportModal from "../components/ReportModal";
+import { Download } from "lucide-react";
 const PIE_COLORS = ["#1e60a4", "#f39c12", "#e74c3c", "#2ecc71", "#9b59b6"];
 
 export default function AdminDashboard() {
   const [requests, setRequests] = useState([]);
+  const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  // 1. FETCH DATA FROM YOUR NODE.JS BACKEND
+  // Fetch requests and staff list
   useEffect(() => {
-    const fetchRequests = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/requests");
-        if (res.ok) {
-          const data = await res.json();
-          setRequests(data);
+        const [requestsRes, staffRes] = await Promise.all([
+          fetch("http://localhost:5000/api/requests"),
+          fetch("http://localhost:5000/api/staff"),
+        ]);
+        if (requestsRes.ok && staffRes.ok) {
+          const requestsData = await requestsRes.json();
+          const staffData = await staffRes.json();
+          setRequests(requestsData);
+          setStaffList(staffData);
+        } else {
+          toast.error("Failed to load data");
         }
       } catch (error) {
-        console.error("Failed to fetch requests", error);
+        console.error("Failed to fetch data", error);
+        toast.error("Server error");
       } finally {
         setLoading(false);
       }
     };
-    fetchRequests();
+    fetchData();
   }, []);
 
   // 2. CALCULATE DYNAMIC STATS
@@ -84,6 +97,7 @@ export default function AdminDashboard() {
     if (status === "In Progress") return styles.statusInProgress;
     return styles.statusResolved;
   };
+
   // Function to change status in the DB
   const handleStatusChange = async (id, newStatus) => {
     try {
@@ -97,21 +111,77 @@ export default function AdminDashboard() {
       );
 
       if (res.ok) {
-        // Update the React state so the UI (and charts!) change instantly
         setRequests(
           requests.map((req) =>
             req.id === id ? { ...req, status: newStatus } : req,
           ),
         );
+        toast.success("Status updated");
+      } else {
+        toast.error("Status update failed");
       }
     } catch (error) {
       console.error("Error updating status", error);
+      toast.error("Server error");
     }
   };
+
+  // Function to assign staff to a request
+  const handleAssignStaff = async (requestId, staffId) => {
+    if (!staffId) return;
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/requests/${requestId}/assign`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ staff_id: staffId }),
+        },
+      );
+
+      if (res.ok) {
+        const updated = await res.json();
+        setRequests(
+          requests.map((req) =>
+            req.id === requestId
+              ? {
+                  ...req,
+                  staff_id: updated.staff_id,
+                  staff_name: updated.staff_name,
+                  staff_role: updated.staff_role,
+                }
+              : req,
+          ),
+        );
+        toast.success("Staff assigned successfully!");
+      } else {
+        toast.error("Assignment failed");
+      }
+    } catch (error) {
+      console.error("Error assigning staff", error);
+      toast.error("Server error");
+    }
+  };
+
   return (
     <DashboardLayout role="admin" userName="Mnguni">
       <h1 className={styles.pageTitle}>Admin Dashboard</h1>
-
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+        }}
+      >
+        <h1 className={styles.pageTitle}>Admin Dashboard</h1>
+        <button
+          onClick={() => setIsReportModalOpen(true)}
+          className={styles.secondaryBtn}
+        >
+          <Download size={18} /> Export Report
+        </button>
+      </div>
       {/* Top Stat Cards */}
       <div className={styles.adminStatsRow}>
         <div className={`${styles.adminStatCard} ${styles.bgBlue}`}>
@@ -152,31 +222,36 @@ export default function AdminDashboard() {
                     <th>Room</th>
                     <th>Issue</th>
                     <th>Status</th>
+                    <th>Assigned To</th>
                     <th>Date</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Map through the latest 5 requests */}
-                  {requests.slice(0, 5).map((req) => (
+                  {requests.slice(0, 10).map((req) => (
                     <tr key={req.id}>
-                      {/* Notice we use student_name because of our SQL JOIN query! */}
                       <td>{req.student_name}</td>
                       <td>{req.room}</td>
                       <td>{req.category}</td>
                       <td>
-                        <select
-                          value={req.status}
-                          onChange={(e) =>
-                            handleStatusChange(req.id, e.target.value)
-                          }
-                          className={`${styles.statusDropdown} ${getStatusClass(req.status)}`}
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Resolved">Resolved</option>
-                        </select>
+                        <span className={getStatusClass(req.status)}>
+                          {req.status}
+                        </span>
+                      </td>
+                      <td>
+                        {req.staff_name
+                          ? `${req.staff_name} (${req.staff_role})`
+                          : "Unassigned"}
                       </td>
                       <td>{formatDate(req.created_at)}</td>
+                      <td>
+                        <Link
+                          href={`/admin/requests/${req.id}`}
+                          className={styles.viewButton}
+                        >
+                          View Details
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -188,7 +263,7 @@ export default function AdminDashboard() {
                 No requests found in the database.
               </div>
             )}
-            {requests.length > 5 && (
+            {requests.length > 10 && (
               <div className={styles.viewAll}>View All Requests &gt;</div>
             )}
           </div>
@@ -219,7 +294,6 @@ export default function AdminDashboard() {
                 </PieChart>
               </ResponsiveContainer>
               <div className={styles.chartLegend}>
-                {/* Dynamically render legend colors based on active categories */}
                 {pieData.map((entry, index) => (
                   <span
                     key={entry.name}
@@ -246,6 +320,10 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+      />
     </DashboardLayout>
   );
 }
