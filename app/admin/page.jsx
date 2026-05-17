@@ -165,7 +165,6 @@ export default function AdminDashboard() {
 
   return (
     <DashboardLayout role="admin" userName="Mnguni">
-      <h1 className={styles.pageTitle}>Admin Dashboard</h1>
       <div
         style={{
           display: "flex",

@@ -529,12 +529,11 @@ app.post("/api/reports/pdf", async (req, res) => {
 });
 
 // ==========================================
-// AUTHENTICATION ROUTES
+// AUTHENTICATION ROUTES (Simplified - Student & Admin only)
 // ==========================================
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// Secret key for JWT (store in .env in production)
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this";
 
@@ -543,42 +542,21 @@ app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    let user = null;
-    let userRole = role;
-    let userId = null;
-    let userName = null;
+    // Query from users table only
+    const result = await pool.query(
+      "SELECT id, name, email, password, role FROM users WHERE email = $1 AND role = $2",
+      [email, role],
+    );
 
-    // Check which table to query based on role
-    if (role === "student" || role === "admin") {
-      const result = await pool.query(
-        "SELECT id, name, email, password, role FROM users WHERE email = $1 AND role = $2",
-        [email, role],
-      );
-      if (result.rows.length > 0) {
-        user = result.rows[0];
-        userId = user.id;
-        userName = user.name;
-      }
-    } else if (role === "warden") {
-      const result = await pool.query(
-        "SELECT id, name, email, password, hostel FROM wardens WHERE email = $1",
-        [email],
-      );
-      if (result.rows.length > 0) {
-        user = result.rows[0];
-        userId = user.id;
-        userName = user.name;
-        userRole = "warden";
-      }
-    }
-
-    if (!user) {
+    if (result.rows.length === 0) {
       return res.status(401).json({ error: "Invalid email or role" });
     }
 
-    // Compare password (for demo, using simple comparison - in production use bcrypt.compare)
-    // For production: const isValid = await bcrypt.compare(password, user.password);
-    const isValid = password === "password123"; // TEMPORARY for testing
+    const user = result.rows[0];
+
+    // TEMPORARY: For testing with plain text password 'password123'
+    // In production, use bcrypt.compare
+    const isValid = password === "password123";
 
     if (!isValid) {
       return res.status(401).json({ error: "Invalid password" });
@@ -587,11 +565,10 @@ app.post("/api/auth/login", async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       {
-        id: userId,
+        id: user.id,
         email: user.email,
-        name: userName,
-        role: userRole,
-        hostel: user.hostel || null,
+        name: user.name,
+        role: user.role,
       },
       JWT_SECRET,
       { expiresIn: "24h" },
@@ -601,11 +578,10 @@ app.post("/api/auth/login", async (req, res) => {
       success: true,
       token,
       user: {
-        id: userId,
-        name: userName,
+        id: user.id,
+        name: user.name,
         email: user.email,
-        role: userRole,
-        hostel: user.hostel || null,
+        role: user.role,
       },
     });
   } catch (err) {
@@ -614,7 +590,7 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// Verify token endpoint (for checking if user is still logged in)
+// Verify token endpoint
 app.get("/api/auth/verify", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -647,14 +623,6 @@ const authenticateToken = (req, res, next) => {
     return res.status(403).json({ error: "Invalid or expired token" });
   }
 };
-
-// Example protected route
-app.get("/api/protected", authenticateToken, (req, res) => {
-  res.json({
-    message: `Welcome ${req.user.name}! You have access.`,
-    user: req.user,
-  });
-});
 
 // Start the server
 const PORT = process.env.PORT || 5000;
