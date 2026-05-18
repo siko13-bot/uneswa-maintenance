@@ -1,7 +1,7 @@
 // src/app/student/help/page.js
 import DashboardLayout from "../../components/DashboardLayout";
 import styles from "../../styles/Dashboard.module.css";
-import { HelpCircle, Phone } from "lucide-react";
+import { HelpCircle, Phone, Mail } from "lucide-react";
 
 export default function StudentHelp() {
   return (
@@ -9,7 +9,7 @@ export default function StudentHelp() {
       <h1 className={styles.pageTitle}>Help & Support</h1>
 
       <div className={styles.dashboardGrid}>
-        <div className={styles.card} style={{ flex: 1 }}>
+        <div className={styles.card}>
           <h3>
             <HelpCircle size={20} style={{ marginRight: "10px" }} /> How to
             Report an Issue
@@ -25,17 +25,20 @@ export default function StudentHelp() {
             </li>
             <li>Provide your exact room number and a clear description.</li>
             <li>
+              Attach a photo if possible to help the maintenance team understand
+              the issue.
+            </li>
+            <li>
               Monitor the <strong>My Requests</strong> tab to see if your issue
               is Pending, In Progress, or Resolved.
             </li>
           </ul>
         </div>
 
-        <div className={styles.card} style={{ flex: 1 }}>
-          <h3>Emergency Contacts</h3>
+        <div className={styles.card}>
+          <h3>Contact Information</h3>
           <p style={{ marginBottom: "15px" }}>
-            For emergencies (e.g., flooding, fire, severe electrical faults),
-            please call immediately:
+            For emergencies, please call immediately:
           </p>
 
           <div className={styles.contactItem}>
@@ -45,6 +48,10 @@ export default function StudentHelp() {
           <div className={styles.contactItem}>
             <Phone size={18} color="#e74c3c" />{" "}
             <span>Emergency Maintenance: +268 2517 0002</span>
+          </div>
+          <div className={styles.contactItem}>
+            <Mail size={18} color="#1e60a4" />{" "}
+            <span>Maintenance Office: maintenance@uneswa.sz</span>
           </div>
         </div>
       </div>

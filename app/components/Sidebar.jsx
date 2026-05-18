@@ -10,13 +10,15 @@ import {
   LogOut,
   ClipboardList,
 } from "lucide-react";
+import Image from "next/image";
+import logo from "../../public/uneswa_logo_05.png";
 import styles from "../styles/Components.module.css";
 
 export default function Sidebar({ role }) {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.sidebarHeader}>
-        <div className={styles.logo}>UNESWA Logo</div>
+        <Image src={logo} alt="UNESWA Logo" width={200} height={80} />
       </div>
 
       <nav className={styles.navMenu}>
@@ -45,9 +47,6 @@ export default function Sidebar({ role }) {
           </Link>
         )}
 
-        <Link href={`/${role}/notifications`} className={styles.navItem}>
-          <Bell size={20} /> Notifications
-        </Link>
         <Link href={`/${role}/announcements`} className={styles.navItem}>
           <Megaphone size={20} /> Announcements
         </Link>
@@ -56,18 +55,16 @@ export default function Sidebar({ role }) {
         </Link>
       </nav>
 
-      <div className={styles.logoutWrapper}>
-        <button
-          onClick={() => {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            window.location.href = "/login";
-          }}
-          className={styles.navItem}
-        >
-          <LogOut size={20} /> Logout
-        </button>
-      </div>
+      <button
+        onClick={() => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+        }}
+        className={`${styles.navItem} ${styles.btnClass}`}
+      >
+        <LogOut size={20} /> Logout
+      </button>
     </aside>
   );
 }

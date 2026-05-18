@@ -1,21 +1,42 @@
 // src/app/student/requests/page.js
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "../../components/DashboardLayout";
 import styles from "../../styles/Dashboard.module.css";
 import Spinner from "../../components/Spinner";
 
 export default function MyRequests() {
+  const router = useRouter();
   const [myRequests, setMyRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
+    const userData = localStorage.getItem("user");
+    if (!userData) {
+      router.push("/login");
+      return;
+    }
+    const parsedUser = JSON.parse(userData);
+    setUser(parsedUser);
+
     const fetchMyRequests = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/requests/student/1");
+        const token = localStorage.getItem("token");
+        const res = await fetch(
+          `http://localhost:5000/api/requests/student/${parsedUser.id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         if (res.ok) {
           const data = await res.json();
           setMyRequests(data);
+
+          // Clear the badge by updating last viewed timestamp
+          const now = new Date().toISOString();
+          localStorage.setItem(`last_viewed_requests_${parsedUser.id}`, now);
         }
       } catch (error) {
         console.error("Failed to fetch requests", error);
@@ -24,7 +45,7 @@ export default function MyRequests() {
       }
     };
     fetchMyRequests();
-  }, []);
+  }, [router]);
 
   const getStatusClass = (status) => {
     if (status === "Pending") return styles.statusPending;
@@ -40,20 +61,25 @@ export default function MyRequests() {
     });
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout role="student" userName={user?.name || "Student"}>
+        <div
+          style={{ display: "flex", justifyContent: "center", padding: "50px" }}
+        >
+          <Spinner size="large" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
-    <DashboardLayout role="student" userName="Siphesihle">
+    <DashboardLayout role="student" userName={user?.name || "Student"}>
       <h1 className={styles.pageTitle}>My Maintenance Requests</h1>
 
       <div className={styles.card}>
         <div className={styles.listContainer}>
-          {loading ? (
-            <div style={{ padding: "40px", textAlign: "center" }}>
-              <Spinner size="medium" />
-              <p style={{ marginTop: "16px", color: "#666" }}>
-                Loading your requests...
-              </p>
-            </div>
-          ) : myRequests.length === 0 ? (
+          {myRequests.length === 0 ? (
             <p>You have no maintenance requests.</p>
           ) : (
             myRequests.map((req) => (
@@ -97,6 +123,12 @@ export default function MyRequests() {
                   >
                     Urgency: {req.urgency}
                   </small>
+                  {/* Show if request was updated */}
+                  {req.updated_at && req.updated_at !== req.created_at && (
+                    <small style={{ color: "#f39c12" }}>
+                      Status updated: {formatDate(req.updated_at)}
+                    </small>
+                  )}
                 </div>
               </div>
             ))

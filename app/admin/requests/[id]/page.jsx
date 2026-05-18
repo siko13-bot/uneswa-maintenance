@@ -41,24 +41,32 @@ export default function RequestDetail() {
     };
     fetchData();
   }, [id, router]);
-
   const handleStatusChange = async (newStatus) => {
     setUpdating(true);
+
     try {
+      const token = localStorage.getItem("token");
+
       const res = await fetch(
         `http://localhost:5000/api/requests/${id}/status`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ status: newStatus }),
         },
       );
+
       if (res.ok) {
         const updated = await res.json();
         setRequest(updated);
         toast.success("Status updated");
       } else {
-        toast.error("Update failed");
+        const error = await res.json(); // 👈 IMPORTANT DEBUG
+        console.log("Backend error:", error);
+        toast.error(error.error || "Update failed");
       }
     } catch (error) {
       console.error(error);
@@ -70,22 +78,32 @@ export default function RequestDetail() {
 
   const handleAssignStaff = async (staffId) => {
     if (!staffId) return;
+
     setUpdating(true);
+
     try {
+      const token = localStorage.getItem("token");
+
       const res = await fetch(
         `http://localhost:5000/api/requests/${id}/assign`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ staff_id: staffId }),
         },
       );
+
       if (res.ok) {
         const updated = await res.json();
         setRequest(updated);
         toast.success("Staff assigned");
       } else {
-        toast.error("Assignment failed");
+        const error = await res.json();
+        console.log("Assignment error:", error);
+        toast.error(error.error || "Assignment failed");
       }
     } catch (error) {
       console.error(error);
@@ -158,16 +176,40 @@ export default function RequestDetail() {
             <span className={styles.detailLabel}>Reported:</span>
             <span>{new Date(request.created_at).toLocaleString()}</span>
           </div>
-
           {/* Image Preview */}
           {request.image_url && (
             <div className={styles.imagePreview}>
               <span className={styles.detailLabel}>Attached Image:</span>
-              <img
-                src={`http://localhost:5000${request.image_url}`}
-                alt="Maintenance issue"
-                className={styles.requestImage}
-              />
+              <div style={{ marginTop: "10px" }}>
+                <img
+                  src={`http://localhost:5000${request.image_url}`}
+                  alt="Maintenance issue"
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "300px",
+                    borderRadius: "8px",
+                    border: "1px solid #ddd",
+                    objectFit: "contain",
+                  }}
+                  onError={(e) => {
+                    console.error(
+                      "Image failed to load:",
+                      `http://localhost:5000${request.image_url}`,
+                    );
+                    e.target.style.display = "none";
+                    e.target.parentElement.innerHTML += `
+            <div style="padding: 20px; background: #fee2e2; border-radius: 8px; color: #991b1b;">
+              <strong>⚠️ Image failed to load</strong><br/>
+              Path: ${request.image_url}<br/>
+              Full URL: http://localhost:5000${request.image_url}
+            </div>
+          `;
+                  }}
+                  onLoad={() =>
+                    console.log("Image loaded successfully:", request.image_url)
+                  }
+                />
+              </div>
             </div>
           )}
         </div>

@@ -12,6 +12,104 @@ const app = express();
 app.use(cors()); // Allows Next.js to communicate with Node
 app.use(express.json()); // Parses incoming JSON requests
 
+// Serve uploaded images statically
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// ==========================================
+// AUTHENTICATION ROUTES (Simplified - Student & Admin only)
+// ==========================================
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this";
+
+// Login endpoint
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password, role } = req.body;
+
+    // Query from users table only
+    const result = await pool.query(
+      "SELECT id, name, email, password, role FROM users WHERE email = $1 AND role = $2",
+      [email, role],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Invalid email or role" });
+    }
+
+    const user = result.rows[0];
+
+    // TEMPORARY: For testing with plain text password 'password123'
+    // In production, use bcrypt.compare
+    const isValid = password === "password123";
+
+    if (!isValid) {
+      return res.status(401).json({ error: "Invalid password" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+      JWT_SECRET,
+      { expiresIn: "24h" },
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error("Login error:", err.message);
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+// Verify token endpoint
+app.get("/api/auth/verify", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({ valid: true, user: decoded });
+  } catch (err) {
+    res.status(401).json({ valid: false, error: "Invalid token" });
+  }
+});
+
+// Middleware to protect routes
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "Access denied. No token provided." });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: "Invalid or expired token" });
+  }
+};
+
 // ==========================================
 // MULTER CONFIGURATION (IMAGE UPLOAD)
 // ==========================================
@@ -88,15 +186,24 @@ app.get("/api/requests", async (req, res) => {
   }
 });
 // 3. UPDATE request status (Used by Admin)
-app.put("/api/requests/:id/status", async (req, res) => {
+app.put("/api/requests/:id/status", authenticateToken, async (req, res) => {
+  // Check if user is admin
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+
   try {
     const { id } = req.params;
-    const { status } = req.body; // Expects "Pending", "In Progress", or "Resolved"
+    const { status } = req.body;
 
     const updateRequest = await pool.query(
       "UPDATE requests SET status = $1 WHERE id = $2 RETURNING *",
       [status, id],
     );
+
+    if (updateRequest.rows.length === 0) {
+      return res.status(404).json({ error: "Request not found" });
+    }
 
     res.json(updateRequest.rows[0]);
   } catch (err) {
@@ -119,6 +226,41 @@ app.get("/api/requests/student/:studentId", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+
+// GET count of requests updated since student last viewed
+app.get(
+  "/api/requests/student/:studentId/updates",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { studentId } = req.params;
+
+      // Ensure the requesting user is the same student
+      if (req.user.id !== parseInt(studentId) && req.user.role !== "admin") {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get last viewed timestamp from request headers or use default (7 days ago)
+      const lastViewed =
+        req.headers["x-last-viewed"] ||
+        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const result = await pool.query(
+        `SELECT COUNT(*) FROM requests 
+       WHERE student_id = $1 
+       AND updated_at > $2
+       AND status != 'Resolved'`, // Only count non-resolved requests
+        [studentId, lastViewed],
+      );
+
+      res.json({ count: parseInt(result.rows[0].count) });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send("Server Error");
+    }
+  },
+);
+
 // ==========================================
 // AUDIT ROUTES
 // ==========================================
@@ -243,7 +385,11 @@ app.post("/api/audits", async (req, res) => {
   }
 });
 // Assign staff to a request
-app.put("/api/requests/:id/assign", async (req, res) => {
+app.put("/api/requests/:id/assign", authenticateToken, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+
   try {
     const { id } = req.params;
     const { staff_id } = req.body;
@@ -529,101 +675,124 @@ app.post("/api/reports/pdf", async (req, res) => {
 });
 
 // ==========================================
-// AUTHENTICATION ROUTES (Simplified - Student & Admin only)
+// ANNOUNCEMENTS ROUTES
 // ==========================================
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this";
-
-// Login endpoint
-app.post("/api/auth/login", async (req, res) => {
+// GET all active announcements (for students and admins)
+app.get("/api/announcements", authenticateToken, async (req, res) => {
   try {
-    const { email, password, role } = req.body;
-
-    // Query from users table only
     const result = await pool.query(
-      "SELECT id, name, email, password, role FROM users WHERE email = $1 AND role = $2",
-      [email, role],
+      `SELECT a.*, u.name as author_name 
+       FROM announcements a
+       LEFT JOIN users u ON a.author_id = u.id
+       WHERE a.is_active = true
+       ORDER BY a.created_at DESC`,
     );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("GET /api/announcements error:", err.message);
+    res.status(500).json({ error: "Failed to fetch announcements" });
+  }
+});
 
+// GET single announcement by ID
+app.get("/api/announcements/:id", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT a.*, u.name as author_name 
+       FROM announcements a
+       LEFT JOIN users u ON a.author_id = u.id
+       WHERE a.id = $1 AND a.is_active = true`,
+      [id],
+    );
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: "Invalid email or role" });
+      return res.status(404).json({ error: "Announcement not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("GET /api/announcements/:id error:", err.message);
+    res.status(500).json({ error: "Failed to fetch announcement" });
+  }
+});
+
+// POST create new announcement (Admin only)
+app.post("/api/announcements", authenticateToken, async (req, res) => {
+  // Check if user is admin
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+
+  try {
+    const { title, content } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: "Title and content are required" });
     }
 
-    const user = result.rows[0];
-
-    // TEMPORARY: For testing with plain text password 'password123'
-    // In production, use bcrypt.compare
-    const isValid = password === "password123";
-
-    if (!isValid) {
-      return res.status(401).json({ error: "Invalid password" });
-    }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      JWT_SECRET,
-      { expiresIn: "24h" },
+    const result = await pool.query(
+      `INSERT INTO announcements (title, content, author_id) 
+       VALUES ($1, $2, $3) RETURNING *`,
+      [title, content, req.user.id],
     );
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    });
+    res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("Login error:", err.message);
-    res.status(500).json({ error: "Login failed" });
+    console.error("POST /api/announcements error:", err.message);
+    res.status(500).json({ error: "Failed to create announcement" });
   }
 });
 
-// Verify token endpoint
-app.get("/api/auth/verify", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ error: "No token provided" });
+// PUT update announcement (Admin only)
+app.put("/api/announcements/:id", authenticateToken, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    res.json({ valid: true, user: decoded });
+    const { id } = req.params;
+    const { title, content, is_active } = req.body;
+
+    const result = await pool.query(
+      `UPDATE announcements 
+       SET title = COALESCE($1, title),
+           content = COALESCE($2, content),
+           is_active = COALESCE($3, is_active),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4 RETURNING *`,
+      [title, content, is_active, id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Announcement not found" });
+    }
+    res.json(result.rows[0]);
   } catch (err) {
-    res.status(401).json({ valid: false, error: "Invalid token" });
+    console.error("PUT /api/announcements/:id error:", err.message);
+    res.status(500).json({ error: "Failed to update announcement" });
   }
 });
 
-// Middleware to protect routes
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ error: "Access denied. No token provided." });
+// DELETE announcement (Admin only - soft delete)
+app.delete("/api/announcements/:id", authenticateToken, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE announcements SET is_active = false, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1 AND is_active = true RETURNING *`,
+      [id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Announcement not found" });
+    }
+    res.json({ message: "Announcement deleted successfully" });
   } catch (err) {
-    return res.status(403).json({ error: "Invalid or expired token" });
+    console.error("DELETE /api/announcements/:id error:", err.message);
+    res.status(500).json({ error: "Failed to delete announcement" });
   }
-};
-
+});
 // Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

@@ -24,7 +24,6 @@ export default function DashboardLayout({ children, role }) {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
 
-      // Verify token with backend
       fetch("http://localhost:5000/api/auth/verify", {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -59,7 +58,7 @@ export default function DashboardLayout({ children, role }) {
     <div className={styles.dashboardContainer}>
       <Sidebar role={role || user.role} />
       <div className={styles.mainContent}>
-        <Header userName={user.name} />
+        <Header userName={user.name} userId={user.id} role={user.role} />
         <main className={styles.pageContent}>{children}</main>
       </div>
     </div>

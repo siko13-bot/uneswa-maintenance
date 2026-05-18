@@ -5,6 +5,7 @@
   color: white;
   padding: 20px;
   display: flex;
+  justify-content: space-between;
   flex-direction: column;
 }
 .navItem {
@@ -87,4 +88,49 @@
 
 .logoutBtn:hover {
   background: #fee2e2;
+}
+.btnClass {
+  border: none;
+  color: #fff;
+  background-color: var(--primary-blue);
+  font-size: 16px;
+}
+/* Notification Bell & Badge */
+.notification {
+  position: relative;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.notification:hover {
+  background: var(--bg-surface, #f0f0f0);
+}
+
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #e74c3c;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 50%;
+  padding: 2px 6px;
+  min-width: 18px;
+  text-align: center;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }

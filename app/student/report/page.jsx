@@ -1,6 +1,7 @@
 // src/app/student/report/page.js
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "../../components/DashboardLayout";
 import styles from "../../styles/Dashboard.module.css";
 import { Wrench, CheckCircle } from "lucide-react";
@@ -8,6 +9,9 @@ import toast from "react-hot-toast";
 import Spinner, { ButtonSpinner } from "../../components/Spinner";
 
 export default function ReportIssue() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -17,6 +21,19 @@ export default function ReportIssue() {
     urgency: "Medium",
     image: null,
   });
+
+  useEffect(() => {
+    const userData = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
+
+    if (!userData || !token) {
+      router.push("/login");
+      return;
+    }
+
+    setUser(JSON.parse(userData));
+    setLoading(false);
+  }, [router]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -30,7 +47,7 @@ export default function ReportIssue() {
     const toastId = toast.loading("Submitting request...");
 
     const submitData = new FormData();
-    submitData.append("student_id", 1);
+    submitData.append("student_id", user.id);
     submitData.append("category", formData.category);
     submitData.append("room", formData.room);
     submitData.append("description", formData.description);
@@ -41,8 +58,12 @@ export default function ReportIssue() {
     }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:5000/api/requests", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: submitData,
       });
 
@@ -71,9 +92,21 @@ export default function ReportIssue() {
     setIsSubmitted(false);
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout role="student" userName="Student">
+        <div
+          style={{ display: "flex", justifyContent: "center", padding: "50px" }}
+        >
+          <Spinner size="large" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (isSubmitted) {
     return (
-      <DashboardLayout role="student" userName="Siphesihle">
+      <DashboardLayout role="student" userName={user?.name}>
         <div
           className={styles.card}
           style={{ maxWidth: "600px", margin: "0 auto" }}
@@ -102,7 +135,7 @@ export default function ReportIssue() {
   }
 
   return (
-    <DashboardLayout role="student" userName="Siphesihle">
+    <DashboardLayout role="student" userName={user?.name}>
       <h1 className={styles.pageTitle}>Report Maintenance Issue</h1>
 
       <div

@@ -567,3 +567,14 @@
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
+/* Status update indicator */
+.updateBadge {
+  background: #fef3c7;
+  color: #d97706;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
