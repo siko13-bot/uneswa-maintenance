@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
 import styles from "../../styles/Dashboard.module.css";
+import Spinner from "../../components/Spinner";
 
 export default function MyRequests() {
   const [myRequests, setMyRequests] = useState([]);
@@ -46,7 +47,12 @@ export default function MyRequests() {
       <div className={styles.card}>
         <div className={styles.listContainer}>
           {loading ? (
-            <p>Loading your requests...</p>
+            <div style={{ padding: "40px", textAlign: "center" }}>
+              <Spinner size="medium" />
+              <p style={{ marginTop: "16px", color: "#666" }}>
+                Loading your requests...
+              </p>
+            </div>
           ) : myRequests.length === 0 ? (
             <p>You have no maintenance requests.</p>
           ) : (

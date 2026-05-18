@@ -11,6 +11,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import styles from "../styles/Components.module.css";
+
 export default function Sidebar({ role }) {
   return (
     <aside className={styles.sidebar}>
@@ -25,6 +26,7 @@ export default function Sidebar({ role }) {
         >
           <Home size={20} /> Dashboard
         </Link>
+
         {role === "student" && (
           <>
             <Link href="/student/report" className={styles.navItem}>
@@ -35,6 +37,14 @@ export default function Sidebar({ role }) {
             </Link>
           </>
         )}
+
+        {/* Hostel Audits - ONLY for admin/warden */}
+        {role === "admin" && (
+          <Link href="/admin/audit" className={styles.navItem}>
+            <ClipboardList size={20} /> Hostel Audits
+          </Link>
+        )}
+
         <Link href={`/${role}/notifications`} className={styles.navItem}>
           <Bell size={20} /> Notifications
         </Link>
@@ -44,15 +54,19 @@ export default function Sidebar({ role }) {
         <Link href={`/${role}/help`} className={styles.navItem}>
           <HelpCircle size={20} /> Help & Support
         </Link>
-        <Link href="/admin/audit" className={styles.navItem}>
-          <ClipboardList size={20} /> Hostel Audits
-        </Link>
       </nav>
 
       <div className={styles.logoutWrapper}>
-        <Link href="/" className={styles.navItem}>
+        <button
+          onClick={() => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.href = "/login";
+          }}
+          className={styles.navItem}
+        >
           <LogOut size={20} /> Logout
-        </Link>
+        </button>
       </div>
     </aside>
   );

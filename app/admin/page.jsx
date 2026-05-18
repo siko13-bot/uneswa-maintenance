@@ -1,5 +1,6 @@
 // src/app/admin/page.js
 "use client";
+import Spinner from "../components/Spinner";
 import { useState, useEffect } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 import styles from "../styles/Dashboard.module.css";
@@ -210,9 +211,7 @@ export default function AdminDashboard() {
             </div>
 
             {loading ? (
-              <p style={{ padding: "20px", color: "#777" }}>
-                Loading live database data...
-              </p>
+              <Spinner size="medium" />
             ) : (
               <table className={styles.table}>
                 <thead>
@@ -273,25 +272,29 @@ export default function AdminDashboard() {
           <div className={styles.chartCard}>
             <h3>Analytics - Most Common Issues</h3>
             <div className={styles.chartWrapper}>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={PIE_COLORS[index % PIE_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {loading ? (
+                <Spinner size="small" />
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={PIE_COLORS[index % PIE_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
               <div className={styles.chartLegend}>
                 {pieData.map((entry, index) => (
                   <span
@@ -308,13 +311,17 @@ export default function AdminDashboard() {
           <div className={styles.chartCard}>
             <h3>Status Overview</h3>
             <div className={styles.chartWrapper}>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={barData}>
-                  <XAxis dataKey="name" fontSize={12} />
-                  <Tooltip cursor={{ fill: "#f4f7f6" }} />
-                  <Bar dataKey="Total" fill="#1e60a4" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {loading ? (
+                <Spinner size="small" />
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={barData}>
+                    <XAxis dataKey="name" fontSize={12} />
+                    <Tooltip cursor={{ fill: "#f4f7f6" }} />
+                    <Bar dataKey="Total" fill="#1e60a4" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </div>

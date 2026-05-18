@@ -4,7 +4,8 @@ import { useState } from "react";
 import DashboardLayout from "../../components/DashboardLayout";
 import styles from "../../styles/Dashboard.module.css";
 import { Wrench, CheckCircle } from "lucide-react";
-import toast from "react-hot-toast"; // Assuming you kept the toaster!
+import toast from "react-hot-toast";
+import Spinner, { ButtonSpinner } from "../../components/Spinner";
 
 export default function ReportIssue() {
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -14,7 +15,7 @@ export default function ReportIssue() {
     room: "",
     description: "",
     urgency: "Medium",
-    image: null, // New state for the file
+    image: null,
   });
 
   const handleFileChange = (e) => {
@@ -26,11 +27,9 @@ export default function ReportIssue() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-
     const toastId = toast.loading("Submitting request...");
 
     const submitData = new FormData();
-
     submitData.append("student_id", 1);
     submitData.append("category", formData.category);
     submitData.append("room", formData.room);
@@ -40,8 +39,9 @@ export default function ReportIssue() {
     if (formData.image) {
       submitData.append("image", formData.image);
     }
+
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/requests", {
+      const response = await fetch("http://localhost:5000/api/requests", {
         method: "POST",
         body: submitData,
       });
@@ -59,6 +59,7 @@ export default function ReportIssue() {
       setIsSubmitting(false);
     }
   };
+
   const resetForm = () => {
     setFormData({
       category: "",
@@ -70,15 +71,13 @@ export default function ReportIssue() {
     setIsSubmitted(false);
   };
 
-  return (
-    <DashboardLayout role="student" userName="Siphesihle">
-      <h1 className={styles.pageTitle}>Report Maintenance Issue</h1>
-
-      <div
-        className={styles.card}
-        style={{ maxWidth: "600px", margin: "0 auto" }}
-      >
-        {isSubmitted ? (
+  if (isSubmitted) {
+    return (
+      <DashboardLayout role="student" userName="Siphesihle">
+        <div
+          className={styles.card}
+          style={{ maxWidth: "600px", margin: "0 auto" }}
+        >
           <div className={styles.successMessage}>
             <CheckCircle
               size={50}
@@ -97,93 +96,110 @@ export default function ReportIssue() {
               Report Another Issue
             </button>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.formGroup}>
-              <label>Issue Category</label>
-              <select
-                required
-                value={formData.category}
-                onChange={(e) =>
-                  setFormData({ ...formData, category: e.target.value })
-                }
-              >
-                <option value="">Select a category...</option>
-                <option value="Plumbing">Plumbing</option>
-                <option value="Electrical">Electrical</option>
-                <option value="Structural">Structural</option>
-                <option value="Appliance">Appliance</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-            <div className={styles.formGroup}>
-              <label>Room / Hall Block</label>
-              <input
-                type="text"
-                placeholder="e.g., Hall Block C, Room 112"
-                required
-                value={formData.room}
-                onChange={(e) =>
-                  setFormData({ ...formData, room: e.target.value })
-                }
-              />
-            </div>
+  return (
+    <DashboardLayout role="student" userName="Siphesihle">
+      <h1 className={styles.pageTitle}>Report Maintenance Issue</h1>
 
-            <div className={styles.formGroup}>
-              <label>Urgency Level</label>
-              <select
-                value={formData.urgency}
-                onChange={(e) =>
-                  setFormData({ ...formData, urgency: e.target.value })
-                }
-              >
-                <option value="Low">Low (Can wait a few days)</option>
-                <option value="Medium">Medium (Needs attention soon)</option>
-                <option value="High">
-                  High (Immediate danger or major disruption)
-                </option>
-              </select>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>Description of the Issue</label>
-              <textarea
-                rows="5"
-                placeholder="Please describe the problem in detail..."
-                required
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-              ></textarea>
-            </div>
-
-            {/* NEW FILE UPLOAD FIELD */}
-            <div className={styles.formGroup}>
-              <label>Attach Image (Optional)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                style={{
-                  padding: "8px",
-                  border: "1px dashed #ccc",
-                  background: "#f9f9f9",
-                }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className={styles.primaryBtn}
-              disabled={isSubmitting}
+      <div
+        className={styles.card}
+        style={{ maxWidth: "600px", margin: "0 auto" }}
+      >
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.formGroup}>
+            <label>Issue Category</label>
+            <select
+              required
+              value={formData.category}
+              onChange={(e) =>
+                setFormData({ ...formData, category: e.target.value })
+              }
             >
-              <Wrench size={18} />{" "}
-              {isSubmitting ? "Submitting..." : "Submit Request"}
-            </button>
-          </form>
-        )}
+              <option value="">Select a category...</option>
+              <option value="Plumbing">Plumbing</option>
+              <option value="Electrical">Electrical</option>
+              <option value="Structural">Structural</option>
+              <option value="Appliance">Appliance</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Room / Hall Block</label>
+            <input
+              type="text"
+              placeholder="e.g., Hall Block C, Room 112"
+              required
+              value={formData.room}
+              onChange={(e) =>
+                setFormData({ ...formData, room: e.target.value })
+              }
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Urgency Level</label>
+            <select
+              value={formData.urgency}
+              onChange={(e) =>
+                setFormData({ ...formData, urgency: e.target.value })
+              }
+            >
+              <option value="Low">Low (Can wait a few days)</option>
+              <option value="Medium">Medium (Needs attention soon)</option>
+              <option value="High">
+                High (Immediate danger or major disruption)
+              </option>
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Description of the Issue</label>
+            <textarea
+              rows="5"
+              placeholder="Please describe the problem in detail..."
+              required
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Attach Image (Optional)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{
+                padding: "8px",
+                border: "1px dashed #ccc",
+                background: "#f9f9f9",
+              }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className={styles.primaryBtn}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <ButtonSpinner /> Submitting...
+              </>
+            ) : (
+              <>
+                <Wrench size={18} /> Submit Request
+              </>
+            )}
+          </button>
+        </form>
       </div>
     </DashboardLayout>
   );
