@@ -33,10 +33,8 @@ export default function MyRequests() {
         if (res.ok) {
           const data = await res.json();
           setMyRequests(data);
-
-          // Clear the badge by updating last viewed timestamp
-          const now = new Date().toISOString();
-          localStorage.setItem(`last_viewed_requests_${parsedUser.id}`, now);
+        } else if (res.status === 401) {
+          router.push("/login");
         }
       } catch (error) {
         console.error("Failed to fetch requests", error);
@@ -50,7 +48,8 @@ export default function MyRequests() {
   const getStatusClass = (status) => {
     if (status === "Pending") return styles.statusPending;
     if (status === "In Progress") return styles.statusInProgress;
-    return styles.statusResolved;
+    if (status === "Resolved") return styles.statusResolved;
+    return "";
   };
 
   const formatDate = (dateString) => {
@@ -59,6 +58,10 @@ export default function MyRequests() {
       month: "2-digit",
       year: "numeric",
     });
+  };
+
+  const handleRequestClick = (id) => {
+    router.push(`/student/requests/${id}`);
   };
 
   if (loading) {
@@ -85,47 +88,32 @@ export default function MyRequests() {
             myRequests.map((req) => (
               <div
                 key={req.id}
-                className={styles.listItem}
-                style={{ flexDirection: "column", alignItems: "flex-start" }}
+                className={styles.requestCard}
+                onClick={() => handleRequestClick(req.id)}
+                style={{ cursor: "pointer" }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    width: "100%",
-                    marginBottom: "10px",
-                  }}
-                >
-                  <h4 style={{ margin: 0, color: "#1e60a4" }}>
+                <div className={styles.requestHeader}>
+                  <h4 className={styles.requestTitle}>
                     {req.category} in {req.room}
                   </h4>
                   <span className={getStatusClass(req.status)}>
                     {req.status}
                   </span>
                 </div>
-                <p
-                  style={{
-                    margin: "0 0 10px 0",
-                    color: "#555",
-                    fontSize: "14px",
-                  }}
-                >
-                  {req.description}
+                <p className={styles.requestDescription}>
+                  {req.description.length > 100
+                    ? req.description.substring(0, 100) + "..."
+                    : req.description}
                 </p>
-                <div style={{ display: "flex", gap: "15px" }}>
-                  <small style={{ color: "#999" }}>
-                    Reported: {formatDate(req.created_at)}
-                  </small>
+                <div className={styles.requestMeta}>
+                  <small>Reported: {formatDate(req.created_at)}</small>
                   <small
-                    style={{
-                      color: req.urgency === "High" ? "#e74c3c" : "#999",
-                    }}
+                    className={req.urgency === "High" ? styles.urgent : ""}
                   >
                     Urgency: {req.urgency}
                   </small>
-                  {/* Show if request was updated */}
-                  {req.updated_at && req.updated_at !== req.created_at && (
-                    <small style={{ color: "#f39c12" }}>
+                  {req.updated_at !== req.created_at && (
+                    <small className={styles.statusUpdated}>
                       Status updated: {formatDate(req.updated_at)}
                     </small>
                   )}

@@ -16,11 +16,9 @@ export default function StudentDashboard() {
     pending: 0,
     inProgress: 0,
     resolved: 0,
-    total: 0,
   });
 
   useEffect(() => {
-    // Get logged-in user
     const userData = localStorage.getItem("user");
     if (!userData) {
       router.push("/login");
@@ -29,35 +27,24 @@ export default function StudentDashboard() {
     const parsedUser = JSON.parse(userData);
     setUser(parsedUser);
 
-    // Fetch student's requests
     const fetchRequests = async () => {
       try {
         const token = localStorage.getItem("token");
         const res = await fetch(
           `http://localhost:5000/api/requests/student/${parsedUser.id}`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           },
         );
         if (res.ok) {
           const data = await res.json();
           setRequests(data);
-
-          // Calculate stats
           const pending = data.filter((r) => r.status === "Pending").length;
           const inProgress = data.filter(
             (r) => r.status === "In Progress",
           ).length;
           const resolved = data.filter((r) => r.status === "Resolved").length;
-
-          setStats({
-            pending,
-            inProgress,
-            resolved,
-            total: data.length,
-          });
+          setStats({ pending, inProgress, resolved });
         } else if (res.status === 401) {
           router.push("/login");
         }
@@ -67,7 +54,6 @@ export default function StudentDashboard() {
         setLoading(false);
       }
     };
-
     fetchRequests();
   }, [router]);
 
@@ -149,9 +135,7 @@ export default function StudentDashboard() {
                   <td>
                     {req.category} - {req.description.substring(0, 50)}...
                   </td>
-
                   <td>{formatDate(req.created_at)}</td>
-
                   <td>
                     <span className={getStatusClass(req.status)}>
                       {req.status}

@@ -1,93 +1,65 @@
-// src/components/Header.js
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Search, Bell, LogOut } from "lucide-react";
+import { Search, LogOut } from "lucide-react";
 import styles from "../styles/Components.module.css";
 
 export default function Header({ userName, userId, role }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [updateCount, setUpdateCount] = useState(0);
-  const [lastViewed, setLastViewed] = useState(null);
-  const isFetching = useRef(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showResults, setShowResults] = useState(false);
+  const searchRef = useRef(null);
 
-  // Check if we're on the My Requests page
-  const isOnMyRequestsPage = pathname === "/student/requests";
-
-  // Get last viewed timestamp from localStorage
+  // Debounced search
   useEffect(() => {
-    const stored = localStorage.getItem(`last_viewed_requests_${userId}`);
-    if (stored) {
-      setLastViewed(stored);
-    } else {
-      const defaultDate = new Date(
-        Date.now() - 7 * 24 * 60 * 60 * 1000,
-      ).toISOString();
-      setLastViewed(defaultDate);
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
     }
-  }, [userId]);
 
-  // Fetch update count
-  const fetchUpdateCount = async () => {
-    if (!userId || !lastViewed || isFetching.current) return;
-
-    // Don't fetch if we're on the My Requests page
-    if (isOnMyRequestsPage) return;
-
-    isFetching.current = true;
-
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `http://localhost:5000/api/requests/student/${userId}/updates`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "X-Last-Viewed": lastViewed,
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(
+          `http://localhost:5000/api/requests/search?q=${encodeURIComponent(searchTerm)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
           },
-        },
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setUpdateCount(data.count);
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.slice(0, 5)); // show top 5
+          setShowResults(true);
+        }
+      } catch (err) {
+        console.error("Search error", err);
       }
-    } catch (error) {
-      console.error("Failed to fetch update count:", error);
-    } finally {
-      isFetching.current = false;
-    }
-  };
+    }, 300);
 
-  // Fetch count on mount and every 30 seconds (but not on My Requests page)
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm]);
+
+  // Close results when clicking outside
   useEffect(() => {
-    if (userId && lastViewed && !isOnMyRequestsPage) {
-      fetchUpdateCount();
-      const interval = setInterval(fetchUpdateCount, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [userId, lastViewed, isOnMyRequestsPage]);
+    const handleClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // Clear badge when visiting My Requests page
-  useEffect(() => {
-    if (isOnMyRequestsPage && updateCount > 0) {
-      // Update last viewed timestamp
-      const now = new Date().toISOString();
-      localStorage.setItem(`last_viewed_requests_${userId}`, now);
-      setLastViewed(now);
-      setUpdateCount(0);
-    }
-  }, [isOnMyRequestsPage, userId, updateCount]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/login");
-  };
-
-  const handleBellClick = () => {
+  const handleResultClick = (id) => {
+    setShowResults(false);
+    setSearchTerm("");
     if (role === "student") {
-      router.push("/student/requests");
+      router.push(`/student/requests/${id}`);
+    } else {
+      router.push(`/admin/requests/${id}`);
     }
   };
 
@@ -98,39 +70,46 @@ export default function Header({ userName, userId, role }) {
       </div>
 
       <div className={styles.headerRight}>
-        <div className={styles.searchBar}>
-          <Search size={18} color="#777" />
-          <input type="text" placeholder="Search..." />
-        </div>
-
-        {/* Status Update Bell - Only for students */}
-        {role === "student" && (
-          <div
-            className={styles.notification}
-            onClick={handleBellClick}
-            style={{ cursor: "pointer" }}
-          >
-            <Bell size={20} />
-            {updateCount > 0 && !isOnMyRequestsPage && (
-              <span className={styles.badge}>
-                {updateCount > 9 ? "9+" : updateCount}
-              </span>
-            )}
+        {/* Search Bar with Results Dropdown */}
+        <div className={styles.searchContainer} ref={searchRef}>
+          <div className={styles.searchBar}>
+            <Search size={18} color="#777" />
+            <input
+              type="text"
+              placeholder="Search by room, category..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => searchTerm.trim() && setShowResults(true)}
+            />
           </div>
-        )}
+          {showResults && (
+            <div className={styles.searchResults}>
+              {searchResults.length === 0 ? (
+                <div className={styles.noResult}>No matching requests</div>
+              ) : (
+                searchResults.map((req) => (
+                  <div
+                    key={req.id}
+                    className={styles.resultItem}
+                    onClick={() => handleResultClick(req.id)}
+                  >
+                    <div className={styles.resultTitle}>
+                      {req.category} – {req.room}
+                    </div>
+                    <div className={styles.resultDesc}>
+                      {req.description.substring(0, 60)}...
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
 
         <div className={styles.userProfile}>
           <div className={styles.avatar}>{userName?.charAt(0) || "U"}</div>
           <span>{userName}</span>
         </div>
-
-        <button
-          onClick={handleLogout}
-          className={styles.logoutBtn}
-          title="Logout"
-        >
-          <LogOut size={20} />
-        </button>
       </div>
     </header>
   );

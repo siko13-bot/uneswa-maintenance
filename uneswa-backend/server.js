@@ -793,6 +793,37 @@ app.delete("/api/announcements/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Failed to delete announcement" });
   }
 });
+// Student confirms resolution (sets status to "Closed" or adds a flag)
+app.put("/api/requests/:id/confirm", authenticateToken, async (req, res) => {
+  // Only the student who owns the request can confirm
+  const { id } = req.params;
+  const studentId = req.user.id;
+
+  try {
+    // First, verify ownership and current status
+    const check = await pool.query(
+      "SELECT student_id, status FROM requests WHERE id = $1",
+      [id],
+    );
+    if (check.rows.length === 0)
+      return res.status(404).json({ error: "Request not found" });
+    if (check.rows[0].student_id !== studentId) {
+      return res.status(403).json({ error: "Not your request" });
+    }
+    if (check.rows[0].status !== "Resolved") {
+      return res.status(400).json({ error: "Request is not resolved yet" });
+    }
+
+    const result = await pool.query(
+      "UPDATE requests SET status = 'Closed', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
+      [id],
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Failed to confirm resolution" });
+  }
+});
 // Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
