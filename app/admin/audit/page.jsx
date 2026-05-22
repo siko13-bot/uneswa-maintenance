@@ -1,77 +1,105 @@
-// src/app/admin/audit/page.js
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import DashboardLayout from "../../components/DashboardLayout";
 import styles from "../../styles/Audit.module.css";
-import { Save, Printer, Download } from "lucide-react";
+import { Save, Printer } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function HostelAudit() {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     // Header
-    hotelName: "",
-    date: new Date().toISOString().split("T")[0],
-    signature: "",
+    hostelName: "",
+    periodOfAudit: "",
+    wardenName: "",
 
-    // Section 1: Comments Table (Showers, Toilets, Bathrooms, Storage, Internal Lights)
-    comments: {
-      showers: { functional: "", faulty: "", remarks: "" },
-      toilets: { functional: "", faulty: "", remarks: "" },
-      bathrooms: { functional: "", faulty: "", remarks: "" },
-      storage: { functional: "", faulty: "", remarks: "" },
-      internalLights: { functional: "", faulty: "", remarks: "" },
+    // Ablution Facilities
+    ablution: {
+      showers: { functional: "", faulty: "", total: "" },
+      toilets: { functional: "", faulty: "", total: "" },
+      sinks: { functional: "", faulty: "", total: "" },
+      showerCurtains: { functional: "", faulty: "", total: "" },
+      internalLights: { functional: "", faulty: "", total: "" },
     },
+    ablutionComments: "",
 
-    // Section 2: Room Conditions
-    roomConditions: {
-      condition: "",
-      notes: "",
-    },
-
-    // Section 3: Wall Paint
-    wallPaint: {
-      condition: "",
+    // Hostel Doors
+    hostelDoors: {
       comments: "",
     },
 
-    // Section 4: Overgrown Vegetation
-    vegetation: {
-      pe: false,
-      shrinker: false,
-      hookIn: false,
-      screwIn: false,
-      overgrown: false,
-      remarks: "",
+    // Room Conditions — each has room numbers + condition text
+    roomConditions: {
+      brokenWindows: { roomNumbers: "", condition: "" },
+      wornOutCurtains: { roomNumbers: "", condition: "" },
+      mouldyWallsRoom: { roomNumbers: "", condition: "" },
+      faultyWindowLocks: { roomNumbers: "", condition: "" },
+      faultyBookShelf: { roomNumbers: "", condition: "" },
+      faultyLockers: { roomNumbers: "", condition: "" },
+      brokenBeds: { roomNumbers: "", condition: "" },
+      faultyDoorLocks: { roomNumbers: "", condition: "" },
     },
 
-    // Section 5: Other Grown Vegetation
-    otherVegetation: {
-      condition: "",
-      remarks: "",
+    // User Condition
+    userCondition: "",
+
+    // Dust Bin
+    dustBin: "",
+
+    // Wash Lines
+    washLines: "",
+
+    // Corridor Lights
+    corridorLights: "",
+
+    // Water System
+    waterSystem: "",
+
+    // Bulbs
+    bulbs: {
+      pe: { qty: "", comment: "" },
+      screwIn: { qty: "", comment: "" },
+      hookIn: { qty: "", comment: "" },
     },
 
-    // Notes
-    notes: "",
+    // Wall Paint
+    wallPaint: "",
+
+    // Hostel Hygiene
+    hostelHygiene: "",
+
+    // Over-Grown Vegetation
+    overGrownVegetation: "",
+
+    // Recommendations / Comments
+    recommendations: "",
+
+    // Warden Condition
+    wardenCondition: "",
+
+    // Signature
+    signature: "",
+    date: new Date().toISOString().split("T")[0],
   });
 
-  const handleCommentChange = (section, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      comments: {
-        ...prev.comments,
-        [section]: { ...prev.comments[section], [field]: value },
-      },
-    }));
+  const set = (path, value) => {
+    setFormData((prev) => {
+      const keys = path.split(".");
+      const next = { ...prev };
+      let cur = next;
+      for (let i = 0; i < keys.length - 1; i++) {
+        cur[keys[i]] = { ...cur[keys[i]] };
+        cur = cur[keys[i]];
+      }
+      cur[keys[keys.length - 1]] = value;
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     const toastId = toast.loading("Saving audit report...");
-
     try {
       const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:5000/api/audits", {
@@ -82,15 +110,13 @@ export default function HostelAudit() {
         },
         body: JSON.stringify({
           auditorId: JSON.parse(localStorage.getItem("user")).id,
-          hostelName: formData.hotelName,
-          auditPeriod: formData.date,
+          hostelName: formData.hostelName,
+          auditPeriod: formData.periodOfAudit,
           auditData: formData,
         }),
       });
-
       if (response.ok) {
         toast.success("Audit report saved successfully!", { id: toastId });
-        // Optionally print or reset
       } else {
         toast.error("Failed to save audit report", { id: toastId });
       }
@@ -102,8 +128,35 @@ export default function HostelAudit() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const ablutionRows = [
+    { key: "showers", label: "SHOWERS" },
+    { key: "toilets", label: "TOILETS" },
+    { key: "sinks", label: "SINKS" },
+    { key: "showerCurtains", label: "SHOWER CURTAINS" },
+    { key: "internalLights", label: "INTERNAL LIGHTS" },
+  ];
+
+  const roomConditionRows = [
+    { key: "brokenWindows", label: "Broken Windows" },
+    { key: "wornOutCurtains", label: "Worn-out Curtains" },
+    { key: "mouldy WallsRoom", label: "Mouldy Walls" },
+    { key: "faultyWindowLocks", label: "Faulty Window Locks" },
+    { key: "faultyBookShelf", label: "Faulty Book-Shelf" },
+    { key: "faultyLockers", label: "Faulty Lockers" },
+    { key: "brokenBeds", label: "Broken Beds" },
+    { key: "faultyDoorLocks", label: "Faulty Door Locks" },
+  ];
+
+  // Map label -> camelCase key for roomConditions
+  const roomKeyMap = {
+    "Broken Windows": "brokenWindows",
+    "Worn-out Curtains": "wornOutCurtains",
+    "Mouldy Walls": "mouldy WallsRoom",
+    "Faulty Window Locks": "faultyWindowLocks",
+    "Faulty Book-Shelf": "faultyBookShelf",
+    "Faulty Lockers": "faultyLockers",
+    "Broken Beds": "brokenBeds",
+    "Faulty Door Locks": "faultyDoorLocks",
   };
 
   return (
@@ -113,7 +166,10 @@ export default function HostelAudit() {
         <div className={styles.headerActions}>
           <h1 className={styles.pageTitle}>Hostel Audit Form</h1>
           <div className={styles.actionButtons}>
-            <button onClick={handlePrint} className={styles.secondaryBtn}>
+            <button
+              onClick={() => window.print()}
+              className={styles.secondaryBtn}
+            >
               <Printer size={18} /> Print
             </button>
             <button
@@ -127,541 +183,348 @@ export default function HostelAudit() {
         </div>
 
         <form onSubmit={handleSubmit} className={styles.auditForm}>
-          {/* Header Section */}
+          {/* ── FORM HEADER ── */}
+          <div className={styles.formBrand}>
+            <div className={styles.brandLogo}>
+              <div className={styles.logoPlaceholder}>UNESWA</div>
+            </div>
+            <div className={styles.brandTitle}>
+              <h2>UNIVERSITY OF ESWATINI</h2>
+              <h3>HOSTEL AUDIT DATA FORM</h3>
+              <p className={styles.officeLabel}>WARDENS OFFICE: KWALUSENI</p>
+            </div>
+          </div>
+
           <div className={styles.headerSection}>
             <div className={styles.headerRow}>
               <div className={styles.headerField}>
-                <label>Name of Hostel</label>
+                <label>NAME OF HOSTEL</label>
                 <input
                   type="text"
-                  value={formData.hotelName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, hotelName: e.target.value })
-                  }
+                  value={formData.hostelName}
+                  onChange={(e) => set("hostelName", e.target.value)}
                   placeholder="Enter hostel name"
                   required
                 />
               </div>
               <div className={styles.headerField}>
-                <label>Date</label>
+                <label>PERIOD OF AUDIT</label>
                 <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, date: e.target.value })
-                  }
-                  required
+                  type="text"
+                  value={formData.periodOfAudit}
+                  onChange={(e) => set("periodOfAudit", e.target.value)}
+                  placeholder="e.g. Jan 2025"
+                />
+              </div>
+              <div className={styles.headerField}>
+                <label>WARDEN NAME</label>
+                <input
+                  type="text"
+                  value={formData.wardenName}
+                  onChange={(e) => set("wardenName", e.target.value)}
+                  placeholder="Warden's name"
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 1: COMMENTS TABLE */}
+          {/* ── ABLUTION FACILITIES ── */}
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>COMMENTS</h2>
+            <h2 className={styles.sectionTitle}>ABLUTION FACILITIES</h2>
+            <p className={styles.sectionNote}>
+              Identify faulty doors either room, toilet or main entrance doors
+            </p>
             <table className={styles.commentsTable}>
               <thead>
                 <tr>
                   <th>Item</th>
                   <th>Functional</th>
                   <th>Faulty</th>
-                  <th>Remarks</th>
+                  <th>Total No.</th>
+                  <th>Comments</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td className={styles.itemLabel}>SHOWERS</td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.showers.functional}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "showers",
-                          "functional",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.showers.faulty}
-                      onChange={(e) =>
-                        handleCommentChange("showers", "faulty", e.target.value)
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={formData.comments.showers.remarks}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "showers",
-                          "remarks",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.textInput}
-                      placeholder="Remarks"
-                    />
-                  </td>
-                </tr>
-                <tr>
-                  <td className={styles.itemLabel}>TOILETS</td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.toilets.functional}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "toilets",
-                          "functional",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.toilets.faulty}
-                      onChange={(e) =>
-                        handleCommentChange("toilets", "faulty", e.target.value)
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={formData.comments.toilets.remarks}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "toilets",
-                          "remarks",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.textInput}
-                      placeholder="Remarks"
-                    />
-                  </td>
-                </tr>
-                <tr>
-                  <td className={styles.itemLabel}>BATHROOMS</td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.bathrooms.functional}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "bathrooms",
-                          "functional",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.bathrooms.faulty}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "bathrooms",
-                          "faulty",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={formData.comments.bathrooms.remarks}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "bathrooms",
-                          "remarks",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.textInput}
-                      placeholder="Remarks"
-                    />
-                  </td>
-                </tr>
-                <tr>
-                  <td className={styles.itemLabel}>STORAGE/CLOTHES</td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.storage.functional}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "storage",
-                          "functional",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.storage.faulty}
-                      onChange={(e) =>
-                        handleCommentChange("storage", "faulty", e.target.value)
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={formData.comments.storage.remarks}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "storage",
-                          "remarks",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.textInput}
-                      placeholder="Remarks"
-                    />
-                  </td>
-                </tr>
-                <tr>
-                  <td className={styles.itemLabel}>INTERNAL LIGHTS</td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.internalLights.functional}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "internalLights",
-                          "functional",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.comments.internalLights.faulty}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "internalLights",
-                          "faulty",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.numberInput}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={formData.comments.internalLights.remarks}
-                      onChange={(e) =>
-                        handleCommentChange(
-                          "internalLights",
-                          "remarks",
-                          e.target.value,
-                        )
-                      }
-                      className={styles.textInput}
-                      placeholder="Remarks"
-                    />
-                  </td>
-                </tr>
+                {ablutionRows.map(({ key, label }) => (
+                  <tr key={key}>
+                    <td className={styles.itemLabel}>{label}</td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.ablution[key].functional}
+                        onChange={(e) =>
+                          set(`ablution.${key}.functional`, e.target.value)
+                        }
+                        className={styles.numberInput}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.ablution[key].faulty}
+                        onChange={(e) =>
+                          set(`ablution.${key}.faulty`, e.target.value)
+                        }
+                        className={styles.numberInput}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.ablution[key].total}
+                        onChange={(e) =>
+                          set(`ablution.${key}.total`, e.target.value)
+                        }
+                        className={styles.numberInput}
+                      />
+                    </td>
+                    {key === "showers" ? (
+                      <td rowSpan={5} className={styles.tallCommentCell}>
+                        <textarea
+                          rows={6}
+                          value={formData.ablutionComments}
+                          onChange={(e) =>
+                            set("ablutionComments", e.target.value)
+                          }
+                          className={styles.cellTextarea}
+                          placeholder="Comments on ablution facilities..."
+                        />
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
 
-          {/* Section 2: ROOM CONDITIONS */}
+          {/* ── HOSTEL DOORS ── */}
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>ROOM CONDITIONS</h2>
-            <div className={styles.simpleRow}>
-              <div className={styles.fieldGroup}>
-                <label>Condition</label>
-                <input
-                  type="text"
-                  value={formData.roomConditions.condition}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      roomConditions: {
-                        ...formData.roomConditions,
-                        condition: e.target.value,
-                      },
-                    })
-                  }
-                  placeholder="e.g., Good, Fair, Poor"
-                  className={styles.textInput}
-                />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label>Notes</label>
-                <input
-                  type="text"
-                  value={formData.roomConditions.notes}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      roomConditions: {
-                        ...formData.roomConditions,
-                        notes: e.target.value,
-                      },
-                    })
-                  }
-                  placeholder="Additional notes"
-                  className={styles.textInput}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: WALL PAINT */}
-          <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>WALL PAINT</h2>
-            <div className={styles.simpleRow}>
-              <div className={styles.fieldGroup}>
-                <label>Condition</label>
-                <input
-                  type="text"
-                  value={formData.wallPaint.condition}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      wallPaint: {
-                        ...formData.wallPaint,
-                        condition: e.target.value,
-                      },
-                    })
-                  }
-                  placeholder="e.g., Good, Peeling, Stained"
-                  className={styles.textInput}
-                />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label>Comments</label>
-                <input
-                  type="text"
-                  value={formData.wallPaint.comments}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      wallPaint: {
-                        ...formData.wallPaint,
-                        comments: e.target.value,
-                      },
-                    })
-                  }
-                  placeholder="Additional comments"
-                  className={styles.textInput}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 4: OVER GROWN VEGETATION */}
-          <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>OVER GROWN VEGETATION</h2>
-            <div className={styles.checkboxGroup}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={formData.vegetation.pe}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      vegetation: {
-                        ...formData.vegetation,
-                        pe: e.target.checked,
-                      },
-                    })
-                  }
-                />
-                PE
-              </label>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={formData.vegetation.shrinker}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      vegetation: {
-                        ...formData.vegetation,
-                        shrinker: e.target.checked,
-                      },
-                    })
-                  }
-                />
-                SHRINKER
-              </label>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={formData.vegetation.hookIn}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      vegetation: {
-                        ...formData.vegetation,
-                        hookIn: e.target.checked,
-                      },
-                    })
-                  }
-                />
-                HOOK-IN
-              </label>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={formData.vegetation.screwIn}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      vegetation: {
-                        ...formData.vegetation,
-                        screwIn: e.target.checked,
-                      },
-                    })
-                  }
-                />
-                SCREW-IN
-              </label>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={formData.vegetation.overgrown}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      vegetation: {
-                        ...formData.vegetation,
-                        overgrown: e.target.checked,
-                      },
-                    })
-                  }
-                />
-                OVERGROWN
-              </label>
-            </div>
+            <h2 className={styles.sectionTitle}>HOSTEL DOORS</h2>
             <div className={styles.fieldGroup}>
-              <label>Remarks</label>
-              <input
-                type="text"
-                value={formData.vegetation.remarks}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    vegetation: {
-                      ...formData.vegetation,
-                      remarks: e.target.value,
-                    },
-                  })
-                }
-                placeholder="Additional remarks"
-                className={styles.textInput}
+              <label>Comments</label>
+              <textarea
+                rows={3}
+                value={formData.hostelDoors.comments}
+                onChange={(e) => set("hostelDoors.comments", e.target.value)}
+                className={styles.notesTextarea}
+                placeholder="e.g. Toilet doors and main entrance door..."
               />
             </div>
           </div>
 
-          {/* Section 5: OTHER GROWN VEGETATION */}
+          {/* ── ROOM CONDITIONS ── */}
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>OTHER GROWN VEGETATION</h2>
-            <div className={styles.simpleRow}>
-              <div className={styles.fieldGroup}>
-                <label>Condition</label>
-                <input
-                  type="text"
-                  value={formData.otherVegetation.condition}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      otherVegetation: {
-                        ...formData.otherVegetation,
-                        condition: e.target.value,
-                      },
-                    })
-                  }
-                  placeholder="Condition"
-                  className={styles.textInput}
-                />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label>Remarks</label>
-                <input
-                  type="text"
-                  value={formData.otherVegetation.remarks}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      otherVegetation: {
-                        ...formData.otherVegetation,
-                        remarks: e.target.value,
-                      },
-                    })
-                  }
-                  placeholder="Remarks"
-                  className={styles.textInput}
-                />
-              </div>
-            </div>
+            <h2 className={styles.sectionTitle}>ROOM CONDITIONS</h2>
+            <table className={styles.commentsTable}>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Room Numbers</th>
+                  <th>Condition / Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roomConditionRows.map(({ label }) => {
+                  const key = roomKeyMap[label];
+                  return (
+                    <tr key={key}>
+                      <td className={styles.itemLabel}>{label}</td>
+                      <td>
+                        <input
+                          type="text"
+                          value={
+                            formData.roomConditions[key]?.roomNumbers ?? ""
+                          }
+                          onChange={(e) =>
+                            set(
+                              `roomConditions.${key}.roomNumbers`,
+                              e.target.value,
+                            )
+                          }
+                          className={styles.textInput}
+                          placeholder="Room numbers"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          value={formData.roomConditions[key]?.condition ?? ""}
+                          onChange={(e) =>
+                            set(
+                              `roomConditions.${key}.condition`,
+                              e.target.value,
+                            )
+                          }
+                          className={styles.textInput}
+                          placeholder="Condition / remarks"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
 
-          {/* Section 6: NOTES */}
+          {/* ── GENERAL CONDITIONS ── */}
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>NOTES</h2>
+            <h2 className={styles.sectionTitle}>GENERAL CONDITIONS</h2>
+            <table className={styles.commentsTable}>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Condition / Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { key: "userCondition", label: "User Condition" },
+                  { key: "dustBin", label: "Dust Bin" },
+                  { key: "washLines", label: "Wash-Lines" },
+                  { key: "corridorLights", label: "Corridor Lights" },
+                  { key: "waterSystem", label: "Water System" },
+                ].map(({ key, label }) => (
+                  <tr key={key}>
+                    <td className={styles.itemLabel}>{label}</td>
+                    <td>
+                      <input
+                        type="text"
+                        value={formData[key]}
+                        onChange={(e) => set(key, e.target.value)}
+                        className={styles.textInput}
+                        placeholder="Good / Fair / Poor / N/A"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── BULBS ── */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>BULBS</h2>
+            <p className={styles.sectionNote}>
+              NB: Indicate number of absent bulbs
+            </p>
+            <table className={styles.commentsTable}>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>QTY</th>
+                  <th>Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { key: "pe", label: "PE" },
+                  { key: "screwIn", label: "SCREW-IN" },
+                  { key: "hookIn", label: "HOOK-IN" },
+                ].map(({ key, label }) => (
+                  <tr key={key}>
+                    <td className={styles.itemLabel}>{label}</td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.bulbs[key].qty}
+                        onChange={(e) =>
+                          set(`bulbs.${key}.qty`, e.target.value)
+                        }
+                        className={styles.numberInput}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={formData.bulbs[key].comment}
+                        onChange={(e) =>
+                          set(`bulbs.${key}.comment`, e.target.value)
+                        }
+                        className={styles.textInput}
+                        placeholder="Comment"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── WALL PAINT / HOSTEL HYGIENE / OVER-GROWN VEGETATION ── */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>PROPERTY CONDITIONS</h2>
+            <table className={styles.commentsTable}>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Condition / Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { key: "wallPaint", label: "Wall Paint" },
+                  { key: "hostelHygiene", label: "Hostel Hygiene" },
+                  {
+                    key: "overGrownVegetation",
+                    label: "Over-Grown Vegetation",
+                  },
+                  { key: "wardenCondition", label: "Warden Condition" },
+                ].map(({ key, label }) => (
+                  <tr key={key}>
+                    <td className={styles.itemLabel}>{label}</td>
+                    <td>
+                      <input
+                        type="text"
+                        value={formData[key]}
+                        onChange={(e) => set(key, e.target.value)}
+                        className={styles.textInput}
+                        placeholder="Condition or comment"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── RECOMMENDATIONS ── */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>RECOMMENDATIONS / COMMENTS</h2>
             <textarea
               rows={4}
-              value={formData.notes}
-              onChange={(e) =>
-                setFormData({ ...formData, notes: e.target.value })
-              }
-              placeholder="Enter any additional notes here..."
+              value={formData.recommendations}
+              onChange={(e) => set("recommendations", e.target.value)}
+              placeholder="Enter recommendations or general comments..."
               className={styles.notesTextarea}
             />
           </div>
 
-          {/* Signature Section */}
+          {/* ── SIGNATURE ── */}
           <div className={styles.signatureSection}>
-            <div className={styles.signatureField}>
-              <label>Signature</label>
-              <input
-                type="text"
-                value={formData.signature}
-                onChange={(e) =>
-                  setFormData({ ...formData, signature: e.target.value })
-                }
-                placeholder="Warden signature"
-                className={styles.textInput}
-              />
+            <div className={styles.signatureRow}>
+              <div className={styles.signatureField}>
+                <label>Warden Signature</label>
+                <input
+                  type="text"
+                  value={formData.signature}
+                  onChange={(e) => set("signature", e.target.value)}
+                  placeholder="Signature"
+                  className={styles.textInput}
+                />
+              </div>
+              <div className={styles.signatureField}>
+                <label>Date</label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => set("date", e.target.value)}
+                  className={styles.textInput}
+                />
+              </div>
             </div>
           </div>
         </form>

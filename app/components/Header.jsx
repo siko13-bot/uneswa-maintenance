@@ -11,6 +11,30 @@ export default function Header({ userName, userId, role }) {
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef(null);
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch("http://localhost:5000/api/user/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(data);
+        }
+      } catch (err) {
+        console.error("Profile fetch error", err);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   // Debounced search
   useEffect(() => {
@@ -107,8 +131,15 @@ export default function Header({ userName, userId, role }) {
         </div>
 
         <div className={styles.userProfile}>
-          <div className={styles.avatar}>{userName?.charAt(0) || "U"}</div>
-          <span>{userName}</span>
+          <div className={styles.avatar}>
+            {profile?.name
+              ?.split(" ")
+              .map((word) => word[0])
+              .join("")
+              .toUpperCase() || "U"}
+          </div>
+
+          <span>{profile?.name || "User"}</span>
         </div>
       </div>
     </header>

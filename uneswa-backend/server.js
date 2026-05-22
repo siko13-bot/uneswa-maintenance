@@ -76,6 +76,56 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+// ==========================================
+// REGISTRATION ROUTE (Student only)
+// ==========================================
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { name, email, password, confirmPassword } = req.body;
+
+    // Validation
+    if (!name || !email || !password || !confirmPassword) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match" });
+    }
+    if (password.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 6 characters" });
+    }
+
+    // Check if email already exists
+    const existingUser = await pool.query(
+      "SELECT id FROM users WHERE email = $1",
+      [email],
+    );
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({ error: "Email already registered" });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert new student (role = 'student')
+    const result = await pool.query(
+      `INSERT INTO users (name, email, password, role) 
+       VALUES ($1, $2, $3, $4) RETURNING id, name, email, role`,
+      [name, email, hashedPassword, "student"],
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Registration successful! Please login.",
+      user: result.rows[0],
+    });
+  } catch (err) {
+    console.error("Registration error:", err.message);
+    res.status(500).json({ error: "Server error during registration" });
+  }
+});
 // Verify token endpoint
 app.get("/api/auth/verify", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
@@ -385,18 +435,27 @@ app.post("/api/audits", async (req, res) => {
   }
 });
 // Assign staff to a request
-app.put("/api/requests/:id/assign", authenticateToken, async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ error: "Admin access required" });
-  }
-
+app.put("/api/requests/:id/assign", async (req, res) => {
   try {
     const { id } = req.params;
     const { staff_id } = req.body;
 
+    // Update the request
+    await pool.query("UPDATE requests SET staff_id = $1 WHERE id = $2", [
+      staff_id,
+      id,
+    ]);
+
+    // Fetch the updated request with staff info
     const result = await pool.query(
-      "UPDATE requests SET staff_id = $1 WHERE id = $2 RETURNING *",
-      [staff_id, id],
+      `
+      SELECT r.*, u.name as student_name, s.name as staff_name, s.role as staff_role
+      FROM requests r
+      JOIN users u ON r.student_id = u.id
+      LEFT JOIN staff s ON r.staff_id = s.id
+      WHERE r.id = $1
+    `,
+      [id],
     );
 
     if (result.rows.length === 0) {
@@ -409,16 +468,16 @@ app.put("/api/requests/:id/assign", authenticateToken, async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
-// GET all requests (with staff name)
+
 app.get("/api/requests", async (req, res) => {
   try {
     const allRequests = await pool.query(`
-            SELECT r.*, u.name as student_name, s.name as staff_name, s.role as staff_role
-            FROM requests r 
-            JOIN users u ON r.student_id = u.id 
-            LEFT JOIN staff s ON r.staff_id = s.id
-            ORDER BY r.created_at DESC
-        `);
+      SELECT r.*, u.name as student_name, s.name as staff_name, s.role as staff_role
+      FROM requests r 
+      JOIN users u ON r.student_id = u.id 
+      LEFT JOIN staff s ON r.staff_id = s.id
+      ORDER BY r.created_at DESC
+    `);
     res.json(allRequests.rows);
   } catch (err) {
     console.error(err.message);
@@ -824,6 +883,163 @@ app.put("/api/requests/:id/confirm", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Failed to confirm resolution" });
   }
 });
+// ==========================================
+// AUDIT ROUTE (With Smart Ticket Generation & Safe JSON)
+// ==========================================
+
+app.post("/api/audits", async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const { auditorId, hostelName, auditPeriod, auditData } = req.body;
+
+    // Safety fallback for auditor
+    const safeAuditorId = auditorId || 1;
+
+    // 1. Insert Main Audit Record
+    const auditRes = await client.query(
+      `INSERT INTO hostel_audits (auditor_id, hostel_name, audit_period, recommendations) 
+             VALUES ($1, $2, $3, $4) RETURNING id`,
+      [
+        safeAuditorId,
+        hostelName || "Unknown",
+        auditPeriod || "N/A",
+        auditData?.recommendations || "",
+      ],
+    );
+    const auditId = auditRes.rows[0].id;
+
+    // 2. Safely Insert Detailed Audit Data into JSONB rows
+    // Using `|| {}` guarantees we NEVER send `undefined` or `null` to the database
+
+    const ablutionPayload = JSON.stringify({
+      facilities: auditData?.ablution || {},
+      comments: auditData?.ablutionComments || "",
+    });
+    await client.query(
+      `INSERT INTO audit_data (audit_id, section_name, form_data) VALUES ($1, $2, $3)`,
+      [auditId, "ablution", ablutionPayload],
+    );
+
+    const roomPayload = JSON.stringify(auditData?.roomConditions || {});
+    await client.query(
+      `INSERT INTO audit_data (audit_id, section_name, form_data) VALUES ($1, $2, $3)`,
+      [auditId, "roomConditions", roomPayload],
+    );
+
+    const bulbsPayload = JSON.stringify(auditData?.bulbs || {});
+    await client.query(
+      `INSERT INTO audit_data (audit_id, section_name, form_data) VALUES ($1, $2, $3)`,
+      [auditId, "bulbs", bulbsPayload],
+    );
+
+    const generalData = {
+      wardenName: auditData?.wardenName || "",
+      hostelDoors: auditData?.hostelDoors || {},
+      userCondition: auditData?.userCondition || "",
+      dustBin: auditData?.dustBin || "",
+      washLines: auditData?.washLines || "",
+      corridorLights: auditData?.corridorLights || "",
+      waterSystem: auditData?.waterSystem || "",
+      wallPaint: auditData?.wallPaint || "",
+      hostelHygiene: auditData?.hostelHygiene || "",
+      overGrownVegetation: auditData?.overGrownVegetation || "",
+      wardenCondition: auditData?.wardenCondition || "",
+      signature: auditData?.signature || "",
+      date: auditData?.date || "",
+    };
+
+    await client.query(
+      `INSERT INTO audit_data (audit_id, section_name, form_data) VALUES ($1, $2, $3)`,
+      [auditId, "general", JSON.stringify(generalData)],
+    );
+
+    // ====================================================================
+    // 3. SMART TICKET AUTO-GENERATION LOGIC
+    // ====================================================================
+
+    // A. Check Ablution Facilities
+    if (auditData?.ablution) {
+      for (const [facility, details] of Object.entries(auditData.ablution)) {
+        const faultyCount = parseInt(details.faulty) || 0;
+        if (faultyCount > 0) {
+          const desc = `AUTO-TICKET (Audit): ${faultyCount} faulty ${facility} reported.`;
+          await client.query(
+            `INSERT INTO requests (student_id, category, room, description, urgency, status) 
+                         VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              safeAuditorId,
+              "Plumbing",
+              `${hostelName} - Shared Ablution`,
+              desc,
+              "High",
+              "Pending",
+            ],
+          );
+        }
+      }
+    }
+
+    // B. Check Room Conditions
+    if (auditData?.roomConditions) {
+      for (const [issueKey, details] of Object.entries(
+        auditData.roomConditions,
+      )) {
+        if (details.roomNumbers && details.roomNumbers.trim() !== "") {
+          const issueName = issueKey
+            .replace(/([A-Z])/g, " $1")
+            .replace(/^./, (str) => str.toUpperCase());
+          const desc = `AUTO-TICKET (Audit): ${issueName} reported.`;
+          await client.query(
+            `INSERT INTO requests (student_id, category, room, description, urgency, status) 
+                         VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              safeAuditorId,
+              "Structural",
+              `${hostelName} Room(s): ${details.roomNumbers}`,
+              desc,
+              "Medium",
+              "Pending",
+            ],
+          );
+        }
+      }
+    }
+
+    // C. Check Specific General Infrastructure
+    if (
+      auditData?.corridorLights &&
+      auditData.corridorLights.toLowerCase().includes("faulty")
+    ) {
+      await client.query(
+        `INSERT INTO requests (student_id, category, room, description, urgency, status) 
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          safeAuditorId,
+          "Electrical",
+          `${hostelName} - Corridors`,
+          `AUTO-TICKET: Corridor lights reported as faulty.`,
+          "Medium",
+          "Pending",
+        ],
+      );
+    }
+
+    await client.query("COMMIT");
+    res.status(201).json({ message: "Audit saved successfully!" });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Audit Transaction Error: ", err.message); // Will print exact issue now
+    res
+      .status(500)
+      .json({ error: "Failed to save audit and generate tickets" });
+  } finally {
+    client.release();
+  }
+});
+
 // Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

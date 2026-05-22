@@ -142,6 +142,8 @@ export default function AdminDashboard() {
 
       if (res.ok) {
         const updated = await res.json();
+        console.log("ASSIGN RESPONSE:", updated);
+
         setRequests(
           requests.map((req) =>
             req.id === requestId
@@ -154,6 +156,7 @@ export default function AdminDashboard() {
               : req,
           ),
         );
+
         toast.success("Staff assigned successfully!");
       } else {
         toast.error("Assignment failed");
@@ -247,7 +250,7 @@ export default function AdminDashboard() {
                           href={`/admin/requests/${req.id}`}
                           className={styles.viewButton}
                         >
-                          View Details
+                          View
                         </Link>
                       </td>
                     </tr>
@@ -260,9 +263,6 @@ export default function AdminDashboard() {
               <div style={{ padding: "20px" }}>
                 No requests found in the database.
               </div>
-            )}
-            {requests.length > 10 && (
-              <div className={styles.viewAll}>View All Requests &gt;</div>
             )}
           </div>
         </div>

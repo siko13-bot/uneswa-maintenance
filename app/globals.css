@@ -1,7 +1,10 @@
 /* src/app/globals.css */
 :root {
   /* Light Theme Variables */
-  --primary-blue: #1e60a4;
+  --primary-blue: hsl(210, 69%, 38%);
+  --primary-blue-text-hover: hsl(210, 69%, 0%);
+  --primary-blue-text: hsl(210, 69%, 80%);
+  --primary-blue-bg: hsl(210, 69%, 95%);
   --primary-blue-hover: #15457a;
   --light-bg: #f4f7f6;
   --white: #ffffff;

@@ -75,7 +75,12 @@ export default function StudentDashboard() {
     return (
       <DashboardLayout role="student" userName={user?.name || "Student"}>
         <div
-          style={{ display: "flex", justifyContent: "center", padding: "50px" }}
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            padding: "50px",
+            alignItems: "center",
+          }}
         >
           <Spinner size="large" />
         </div>

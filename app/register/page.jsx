@@ -1,16 +1,17 @@
-// src/app/login/page.js
+// src/app/register/page.js
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import styles from "../styles/Login.module.css";
 import Link from "next/link";
+import styles from "../styles/Login.module.css";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
+    name: "",
     email: "",
     password: "",
-    role: "student",
+    confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -21,7 +22,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
+      const res = await fetch("http://localhost:5000/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -30,23 +31,15 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        // Redirect based on role
-        if (data.user.role === "admin") {
-          router.push("/admin");
-        } else {
-          router.push("/student");
-        }
+        // Redirect to login page after successful registration
+        alert("Registration successful! Please login.");
+        router.push("/login");
       } else {
-        setError(data.error || "Login failed");
+        setError(data.error || "Registration failed");
       }
     } catch (err) {
-      console.error("Login error:", err);
-      setError(
-        "Server error. Please make sure the backend is running on port 5000",
-      );
+      console.error("Registration error:", err);
+      setError("Server error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -56,22 +49,38 @@ export default function LoginPage() {
     <div className={styles.loginContainer}>
       <div className={styles.loginCard}>
         <div className={styles.logo}>UNESWA Maintenance System</div>
-        <h2>Login</h2>
+        <h2>Student Registration</h2>
 
         {error && <div className={styles.errorMessage}>{error}</div>}
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
-            <label>Email</label>
+            <label>Full Name</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g., Siphesihle Dlamini"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Email Address</label>
             <input
               type="email"
               required
-              placeholder="email@uneswa.sz"
+              placeholder="student@student.uneswa.sz"
               value={formData.email}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
             />
+            <small className={styles.microCopy}>
+              Use your university email address
+            </small>
           </div>
 
           <div className={styles.formGroup}>
@@ -79,7 +88,7 @@ export default function LoginPage() {
             <input
               type="password"
               required
-              placeholder="Enter your password"
+              placeholder="Minimum 6 characters"
               value={formData.password}
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
@@ -88,32 +97,28 @@ export default function LoginPage() {
           </div>
 
           <div className={styles.formGroup}>
-            <label>Role</label>
-            <select
-              value={formData.role}
+            <label>Confirm Password</label>
+            <input
+              type="password"
+              required
+              placeholder="Re-enter your password"
+              value={formData.confirmPassword}
               onChange={(e) =>
-                setFormData({ ...formData, role: e.target.value })
+                setFormData({ ...formData, confirmPassword: e.target.value })
               }
-            >
-              <option value="student">Student</option>
-              <option value="admin">Admin / Warden</option>
-            </select>
+            />
           </div>
 
           <button type="submit" className={styles.loginBtn} disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
+            {loading ? "Registering..." : "Register"}
           </button>
         </form>
+
         <div className={styles.demoCredentials}>
-          <p>Don't have an account?</p>
-          <Link href="/register" className={styles.registerLink}>
-            Register as a Student
+          <p>Already have an account?</p>
+          <Link href="/login" className={styles.registerLink}>
+            Login here
           </Link>
-        </div>
-        <div className={styles.demoCredentials}>
-          <p>Demo Credentials:</p>
-          <small>Student: siphe@student.uneswa.sz / password123</small>
-          <small>Admin/Warden: mnguni@admin.uneswa.sz / password123</small>
         </div>
       </div>
     </div>
