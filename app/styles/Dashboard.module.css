@@ -779,3 +779,17 @@
   color: #15457a;
   text-decoration: underline;
 }
+/* Force status text to stay on one line */
+.statusPending,
+.statusInProgress,
+.statusResolved {
+  white-space: nowrap;
+  display: inline-block;
+  min-width: auto;
+  padding: 4px 8px;
+}
+
+/* If you want a slightly wider badge for "In Progress", you can keep it flexible */
+.statusInProgress {
+  white-space: nowrap;
+}

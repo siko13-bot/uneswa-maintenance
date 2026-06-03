@@ -134,7 +134,6 @@ export default function RequestDetail() {
       </DashboardLayout>
     );
   }
-
   return (
     <DashboardLayout role="admin" userName="Mnguni">
       <div className={styles.pageHeader}>

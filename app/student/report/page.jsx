@@ -21,6 +21,7 @@ export default function ReportIssue() {
     urgency: "Medium",
     image: null,
   });
+  const [submittedRequestId, setSubmittedRequestId] = useState(null);
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -40,14 +41,25 @@ export default function ReportIssue() {
       setFormData({ ...formData, image: e.target.files[0] });
     }
   };
+  const resetForm = () => {
+    setFormData({
+      category: "",
+      room: "",
+      description: "",
+      urgency: "Medium",
+      image: null,
+    });
+    setIsSubmitted(false);
+  };
 
+  // Modify handleSubmit
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     const toastId = toast.loading("Submitting request...");
 
     const submitData = new FormData();
-    submitData.append("student_id", user.id);
+    submitData.append("student_id", user.id); // or use token to get user id
     submitData.append("category", formData.category);
     submitData.append("room", formData.room);
     submitData.append("description", formData.description);
@@ -68,6 +80,8 @@ export default function ReportIssue() {
       });
 
       if (response.ok) {
+        const newRequest = await response.json();
+        setSubmittedRequestId(newRequest.id);
         toast.success("Issue reported successfully!", { id: toastId });
         setIsSubmitted(true);
       } else {
@@ -81,16 +95,33 @@ export default function ReportIssue() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      category: "",
-      room: "",
-      description: "",
-      urgency: "Medium",
-      image: null,
-    });
-    setIsSubmitted(false);
-  };
+  // In the success screen, display the request ID
+  {
+    isSubmitted && (
+      <div className={styles.successMessage}>
+        <CheckCircle
+          size={50}
+          color="#28a745"
+          style={{ marginBottom: "15px" }}
+        />
+        <h2>Issue Reported Successfully!</h2>
+        <p>
+          Your request ID is: <strong>#{submittedRequestId}</strong>
+        </p>
+        <p>
+          You can track the status using this ID on the{" "}
+          <strong>My Requests</strong> page.
+        </p>
+        <button
+          onClick={resetForm}
+          className={styles.primaryBtn}
+          style={{ marginTop: "20px" }}
+        >
+          Report Another Issue
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -117,10 +148,19 @@ export default function ReportIssue() {
               color="#28a745"
               style={{ marginBottom: "15px" }}
             />
+
             <h2>Issue Reported Successfully!</h2>
+
             <p>
               Your maintenance request has been forwarded to the administration.
             </p>
+
+            <p>
+              Request ID: <strong>#{submittedRequestId}</strong>
+            </p>
+
+            <p>Please keep this ID for tracking your maintenance request.</p>
+
             <button
               onClick={resetForm}
               className={styles.primaryBtn}
@@ -133,7 +173,6 @@ export default function ReportIssue() {
       </DashboardLayout>
     );
   }
-
   return (
     <DashboardLayout role="student" userName={user?.name}>
       <h1 className={styles.pageTitle}>Report Maintenance Issue</h1>

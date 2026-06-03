@@ -126,9 +126,11 @@ export default function StudentDashboard() {
             You haven't submitted any maintenance requests yet.
           </p>
         ) : (
+          // In the table section, replace the <thead> and <tbody> with:
           <table className={styles.table}>
             <thead>
               <tr>
+                <th>ID</th>
                 <th>Issue</th>
                 <th>Date</th>
                 <th>Status</th>
@@ -137,6 +139,7 @@ export default function StudentDashboard() {
             <tbody>
               {requests.slice(0, 5).map((req) => (
                 <tr key={req.id}>
+                  <td>{req.id}</td>
                   <td>
                     {req.category} - {req.description.substring(0, 50)}...
                   </td>

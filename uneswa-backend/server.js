@@ -240,22 +240,7 @@ app.post("/api/requests", (req, res) => {
     }
   });
 });
-// 2. GET all requests (Used by Admin Dashboard)
-app.get("/api/requests", async (req, res) => {
-  try {
-    // We join with the users table to get the student's name
-    const allRequests = await pool.query(`
-            SELECT r.*, u.name as student_name 
-            FROM requests r 
-            JOIN users u ON r.student_id = u.id 
-            ORDER BY r.created_at DESC
-        `);
-    res.json(allRequests.rows);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
-});
+
 // 3. UPDATE request status (Used by Admin)
 app.put("/api/requests/:id/status", authenticateToken, async (req, res) => {
   // Check if user is admin

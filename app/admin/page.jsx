@@ -34,9 +34,22 @@ export default function AdminDashboard() {
           fetch("http://localhost:5000/api/requests"),
           fetch("http://localhost:5000/api/staff"),
         ]);
+
         if (requestsRes.ok && staffRes.ok) {
           const requestsData = await requestsRes.json();
+
+          console.log(
+            "REQUESTS DATA:",
+            requestsData.map((req) => ({
+              id: req.id,
+              staff_id: req.staff_id,
+              staff_name: req.staff_name,
+              staff_role: req.staff_role,
+            })),
+          );
+
           const staffData = await staffRes.json();
+
           setRequests(requestsData);
           setStaffList(staffData);
         } else {
@@ -49,6 +62,7 @@ export default function AdminDashboard() {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
@@ -143,7 +157,6 @@ export default function AdminDashboard() {
       if (res.ok) {
         const updated = await res.json();
         console.log("ASSIGN RESPONSE:", updated);
-
         setRequests(
           requests.map((req) =>
             req.id === requestId
@@ -219,6 +232,7 @@ export default function AdminDashboard() {
               <table className={styles.table}>
                 <thead>
                   <tr>
+                    <th>ID</th>
                     <th>Student</th>
                     <th>Room</th>
                     <th>Issue</th>
@@ -231,6 +245,7 @@ export default function AdminDashboard() {
                 <tbody>
                   {requests.slice(0, 10).map((req) => (
                     <tr key={req.id}>
+                      <td>{req.id}</td>
                       <td>{req.student_name}</td>
                       <td>{req.room}</td>
                       <td>{req.category}</td>
