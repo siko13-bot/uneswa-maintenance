@@ -11,25 +11,34 @@ export default function StudentRequestDetail() {
   const { id } = useParams();
   const router = useRouter();
   const [request, setRequest] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [confirming, setConfirming] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
 
+  // Fetch request and messages
   useEffect(() => {
     if (!id) return;
-
-    const fetchRequest = async () => {
+    const fetchData = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`http://localhost:5000/api/requests/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setRequest(data);
-        } else if (res.status === 401) {
+        const token = sessionStorage.getItem("token");
+        const [reqRes, msgRes] = await Promise.all([
+          fetch(`http://localhost:5000/api/requests/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`http://localhost:5000/api/requests/${id}/messages`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+        if (reqRes.ok && msgRes.ok) {
+          const reqData = await reqRes.json();
+          const msgData = await msgRes.json();
+          setRequest(reqData);
+          setMessages(msgData);
+        } else if (reqRes.status === 401) {
           router.push("/login");
         } else {
-          toast.error("Request not found");
+          toast.error("Failed to load request");
           router.push("/student/requests");
         }
       } catch (error) {
@@ -39,21 +48,51 @@ export default function StudentRequestDetail() {
         setLoading(false);
       }
     };
-    fetchRequest();
+    fetchData();
   }, [id, router]);
 
-  const handleConfirmResolution = async () => {
-    if (
-      !confirm(
-        "Has the issue been fully resolved? This action cannot be undone.",
-      )
-    )
-      return;
-
-    setConfirming(true);
-    const toastId = toast.loading("Confirming resolution...");
+  // Send a message
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+    setSending(true);
+    const toastId = toast.loading("Sending message...");
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
+      const res = await fetch(
+        `http://localhost:5000/api/requests/${id}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ message: newMessage }),
+        },
+      );
+      if (res.ok) {
+        const savedMsg = await res.json();
+        setMessages([...messages, savedMsg]);
+        setNewMessage("");
+        toast.success("Message sent", { id: toastId });
+      } else {
+        toast.error("Failed to send", { id: toastId });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Server error", { id: toastId });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Confirm resolution (closes ticket)
+  const handleConfirmResolution = async () => {
+    if (!confirm("Mark this issue as fully closed? This cannot be undone."))
+      return;
+    const toastId = toast.loading("Closing request...");
+    try {
+      const token = sessionStorage.getItem("token");
       const res = await fetch(
         `http://localhost:5000/api/requests/${id}/confirm`,
         {
@@ -68,29 +107,59 @@ export default function StudentRequestDetail() {
       if (res.ok) {
         const updated = await res.json();
         setRequest(updated);
-        toast.success("Thank you for confirming! Request closed.", {
-          id: toastId,
-        });
+        toast.success("Request closed. Thank you!", { id: toastId });
       } else {
-        toast.error("Failed to confirm", { id: toastId });
+        toast.error("Failed to close", { id: toastId });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Server error", { id: toastId });
+    }
+  };
+
+  // Report still incomplete – sends a message and keeps status resolved
+  const handleReportIncomplete = async () => {
+    const reportMsg = prompt(
+      "Please describe what is still not working or incomplete:",
+    );
+    if (!reportMsg || !reportMsg.trim()) return;
+    setSending(true);
+    const toastId = toast.loading("Sending report...");
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await fetch(
+        `http://localhost:5000/api/requests/${id}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ message: `[INCOMPLETE REPORT] ${reportMsg}` }),
+        },
+      );
+      if (res.ok) {
+        const savedMsg = await res.json();
+        setMessages([...messages, savedMsg]);
+        toast.success("Report sent. Admin has been notified.", { id: toastId });
+      } else {
+        toast.error("Failed to send", { id: toastId });
       }
     } catch (error) {
       console.error(error);
       toast.error("Server error", { id: toastId });
     } finally {
-      setConfirming(false);
+      setSending(false);
     }
   };
 
+  const formatDate = (dateString) => new Date(dateString).toLocaleString();
   const getStatusClass = (status) => {
     if (status === "Pending") return styles.statusPending;
     if (status === "In Progress") return styles.statusInProgress;
     if (status === "Resolved") return styles.statusResolved;
+    if (status === "Closed") return styles.statusClosed;
     return "";
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
   };
 
   if (loading) {
@@ -104,8 +173,10 @@ export default function StudentRequestDetail() {
       </DashboardLayout>
     );
   }
-
   if (!request) return null;
+
+  const isResolved = request.status === "Resolved";
+  const isClosed = request.status === "Closed";
 
   return (
     <DashboardLayout
@@ -120,7 +191,7 @@ export default function StudentRequestDetail() {
       </div>
 
       <div className={styles.detailGrid}>
-        {/* Left Column: Request Info */}
+        {/* Left – Request Info */}
         <div className={styles.detailCard}>
           <h3>Request Information</h3>
           <div className={styles.detailRow}>
@@ -148,10 +219,6 @@ export default function StudentRequestDetail() {
             <span>{formatDate(request.created_at)}</span>
           </div>
           <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Last updated:</span>
-            <span>{formatDate(request.updated_at)}</span>
-          </div>
-          <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Status:</span>
             <span className={getStatusClass(request.status)}>
               {request.status}
@@ -165,14 +232,12 @@ export default function StudentRequestDetail() {
               </span>
             </div>
           )}
-
-          {/* Image Preview */}
           {request.image_url && (
             <div className={styles.imagePreview}>
               <span className={styles.detailLabel}>Attached Image:</span>
               <img
                 src={`http://localhost:5000${request.image_url}`}
-                alt="Maintenance issue"
+                alt="Issue"
                 className={styles.requestImage}
                 onError={(e) => (e.target.style.display = "none")}
               />
@@ -180,21 +245,86 @@ export default function StudentRequestDetail() {
           )}
         </div>
 
-        {/* Right Column: Actions (only if Resolved) */}
-        {request.status === "Resolved" && (
-          <div className={styles.detailCard}>
-            <h3>Confirm Resolution</h3>
-            <p>Has the issue been fixed to your satisfaction?</p>
-            <button
-              onClick={handleConfirmResolution}
-              className={styles.primaryBtn}
-              disabled={confirming}
-              style={{ marginTop: "16px", width: "100%" }}
-            >
-              {confirming ? "Confirming..." : "Yes, Confirm Resolution"}
-            </button>
+        {/* Right – Messages & Actions */}
+        <div className={styles.detailCard}>
+          <h3>Messages</h3>
+          {/* Messages – WhatsApp style */}
+          <div className={styles.messagesContainer}>
+            {messages.length === 0 && (
+              <p
+                style={{
+                  textAlign: "center",
+                  color: "#666",
+                  fontStyle: "italic",
+                }}
+              >
+                No messages yet. Start the conversation.
+              </p>
+            )}
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`${styles.messageItem} ${msg.is_from_student ? styles.studentMessage : styles.adminMessage}`}
+              >
+                <div className={styles.messageBubble}>
+                  <div className={styles.messageHeader}>
+                    <strong>{msg.user_name}</strong>
+                    <span style={{ fontSize: "10px", color: "#888" }}>
+                      {formatDate(msg.created_at)}
+                    </span>
+                  </div>
+                  <p className={styles.messageText}>{msg.message}</p>
+                  {/* Optional: add read/delivered icons, but keep simple */}
+                </div>
+              </div>
+            ))}
           </div>
-        )}
+
+          {/* Send message form */}
+          <form onSubmit={handleSendMessage} className={styles.messageForm}>
+            <textarea
+              rows={2}
+              placeholder="Type your message here (e.g., additional details, updates)..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              className={styles.messageInput}
+              disabled={sending}
+            />
+            <button
+              type="submit"
+              className={styles.secondaryBtn}
+              disabled={sending}
+            >
+              {sending ? "Sending..." : "Send Message"}
+            </button>
+          </form>
+
+          {/* Resolution actions (only when status = Resolved) */}
+          {isResolved && (
+            <div className={styles.actionButtons}>
+              <button
+                onClick={handleConfirmResolution}
+                className={styles.primaryBtn}
+              >
+                ✓ Confirm Resolution (Close Ticket)
+              </button>
+              <button
+                onClick={handleReportIncomplete}
+                className={styles.dangerBtn}
+              >
+                ✗ Report Issue Still Present
+              </button>
+            </div>
+          )}
+
+          {isClosed && (
+            <div className={styles.closedNotice}>
+              <p>
+                This request has been closed. Thank you for your confirmation.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -101,7 +101,7 @@ export default function HostelAudit() {
     setIsSubmitting(true);
     const toastId = toast.loading("Saving audit report...");
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const response = await fetch("http://localhost:5000/api/audits", {
         method: "POST",
         headers: {
@@ -109,7 +109,7 @@ export default function HostelAudit() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          auditorId: JSON.parse(localStorage.getItem("user")).id,
+          auditorId: JSON.parse(sessionStorage.getItem("user")).id,
           hostelName: formData.hostelName,
           auditPeriod: formData.periodOfAudit,
           auditData: formData,

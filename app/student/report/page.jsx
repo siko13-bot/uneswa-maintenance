@@ -24,8 +24,8 @@ export default function ReportIssue() {
   const [submittedRequestId, setSubmittedRequestId] = useState(null);
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    const token = localStorage.getItem("token");
+    const userData = sessionStorage.getItem("user");
+    const token = sessionStorage.getItem("token");
 
     if (!userData || !token) {
       router.push("/login");
@@ -70,7 +70,7 @@ export default function ReportIssue() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const response = await fetch("http://localhost:5000/api/requests", {
         method: "POST",
         headers: {

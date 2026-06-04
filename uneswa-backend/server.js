@@ -1046,6 +1046,139 @@ app.post("/api/audits", async (req, res) => {
   }
 });
 
+// ==========================================
+// REQUEST MESSAGES & REOPEN
+// ==========================================
+
+// POST /api/requests/:id/messages – Add a message (student or admin)
+app.post("/api/requests/:id/messages", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { message } = req.body;
+  const userId = req.user.id;
+  const userRole = req.user.role;
+
+  if (!message || message.trim() === "") {
+    return res.status(400).json({ error: "Message cannot be empty" });
+  }
+
+  try {
+    // Verify the request exists and user has access (student only their own)
+    const reqCheck = await pool.query(
+      "SELECT student_id FROM requests WHERE id = $1",
+      [id],
+    );
+    if (reqCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+    if (userRole === "student" && reqCheck.rows[0].student_id !== userId) {
+      return res.status(403).json({ error: "Not your request" });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO request_messages (request_id, user_id, message, is_from_student)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [id, userId, message, userRole === "student"],
+    );
+
+    // Also update the request's updated_at timestamp (optional)
+    await pool.query(
+      "UPDATE requests SET updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [id],
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Failed to add message" });
+  }
+});
+
+// GET /api/requests/:id/messages – Fetch all messages for a request
+app.get("/api/requests/:id/messages", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+  const userRole = req.user.role;
+
+  try {
+    const reqCheck = await pool.query(
+      "SELECT student_id FROM requests WHERE id = $1",
+      [id],
+    );
+    if (reqCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+    if (userRole === "student" && reqCheck.rows[0].student_id !== userId) {
+      return res.status(403).json({ error: "Not your request" });
+    }
+
+    const messages = await pool.query(
+      `SELECT m.*, u.name as user_name
+       FROM request_messages m
+       JOIN users u ON m.user_id = u.id
+       WHERE m.request_id = $1
+       ORDER BY m.created_at ASC`,
+      [id],
+    );
+    res.json(messages.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+// PUT /api/requests/:id/confirm – Student confirms resolution (closes ticket)
+app.put("/api/requests/:id/confirm", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const studentId = req.user.id;
+
+  try {
+    // Check ownership and current status
+    const check = await pool.query(
+      "SELECT student_id, status FROM requests WHERE id = $1",
+      [id],
+    );
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+    if (check.rows[0].student_id !== studentId) {
+      return res.status(403).json({ error: "Not your request" });
+    }
+    if (check.rows[0].status !== "Resolved") {
+      return res.status(400).json({ error: "Request is not resolved yet" });
+    }
+
+    const result = await pool.query(
+      "UPDATE requests SET status = 'Closed', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
+      [id],
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Failed to confirm resolution" });
+  }
+});
+
+// PUT /api/requests/:id/reopen – Admin reopens a closed request
+app.put("/api/requests/:id/reopen", authenticateToken, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      "UPDATE requests SET status = 'In Progress', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'Closed' RETURNING *",
+      [id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Request not found or not closed" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Failed to reopen request" });
+  }
+});
+
 // Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

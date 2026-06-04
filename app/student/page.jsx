@@ -19,7 +19,7 @@ export default function StudentDashboard() {
   });
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
+    const userData = sessionStorage.getItem("user");
     if (!userData) {
       router.push("/login");
       return;
@@ -29,7 +29,7 @@ export default function StudentDashboard() {
 
     const fetchRequests = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = sessionStorage.getItem("token");
         const res = await fetch(
           `http://localhost:5000/api/requests/student/${parsedUser.id}`,
           {

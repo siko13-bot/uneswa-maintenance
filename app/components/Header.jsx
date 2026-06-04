@@ -16,7 +16,7 @@ export default function Header({ userName, userId, role }) {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = sessionStorage.getItem("token");
 
         const res = await fetch("http://localhost:5000/api/user/profile", {
           headers: {
@@ -46,7 +46,7 @@ export default function Header({ userName, userId, role }) {
 
     const delayDebounce = setTimeout(async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = sessionStorage.getItem("token");
         const res = await fetch(
           `http://localhost:5000/api/requests/search?q=${encodeURIComponent(searchTerm)}`,
           {

@@ -7,27 +7,39 @@ import styles from "../../../styles/Dashboard.module.css";
 import toast from "react-hot-toast";
 import Spinner, { FullPageLoader } from "../../../components/Spinner";
 
-export default function RequestDetail() {
+export default function AdminRequestDetail() {
   const { id } = useParams();
   const router = useRouter();
   const [request, setRequest] = useState(null);
   const [staffList, setStaffList] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
 
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
       try {
-        const [reqRes, staffRes] = await Promise.all([
-          fetch(`http://localhost:5000/api/requests/${id}`),
-          fetch("http://localhost:5000/api/staff"),
+        const token = sessionStorage.getItem("token");
+        const [reqRes, staffRes, msgRes] = await Promise.all([
+          fetch(`http://localhost:5000/api/requests/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("http://localhost:5000/api/staff", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`http://localhost:5000/api/requests/${id}/messages`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
-        if (reqRes.ok && staffRes.ok) {
+        if (reqRes.ok && staffRes.ok && msgRes.ok) {
           const reqData = await reqRes.json();
           const staffData = await staffRes.json();
+          const msgData = await msgRes.json();
           setRequest(reqData);
           setStaffList(staffData);
+          setMessages(msgData);
         } else {
           toast.error("Failed to load request details");
           router.push("/admin");
@@ -41,12 +53,11 @@ export default function RequestDetail() {
     };
     fetchData();
   }, [id, router]);
+
   const handleStatusChange = async (newStatus) => {
     setUpdating(true);
-
     try {
-      const token = localStorage.getItem("token");
-
+      const token = sessionStorage.getItem("token");
       const res = await fetch(
         `http://localhost:5000/api/requests/${id}/status`,
         {
@@ -58,14 +69,12 @@ export default function RequestDetail() {
           body: JSON.stringify({ status: newStatus }),
         },
       );
-
       if (res.ok) {
         const updated = await res.json();
         setRequest(updated);
         toast.success("Status updated");
       } else {
-        const error = await res.json(); // 👈 IMPORTANT DEBUG
-        console.log("Backend error:", error);
+        const error = await res.json();
         toast.error(error.error || "Update failed");
       }
     } catch (error) {
@@ -78,12 +87,9 @@ export default function RequestDetail() {
 
   const handleAssignStaff = async (staffId) => {
     if (!staffId) return;
-
     setUpdating(true);
-
     try {
-      const token = localStorage.getItem("token");
-
+      const token = sessionStorage.getItem("token");
       const res = await fetch(
         `http://localhost:5000/api/requests/${id}/assign`,
         {
@@ -95,14 +101,12 @@ export default function RequestDetail() {
           body: JSON.stringify({ staff_id: staffId }),
         },
       );
-
       if (res.ok) {
         const updated = await res.json();
         setRequest(updated);
         toast.success("Staff assigned");
       } else {
         const error = await res.json();
-        console.log("Assignment error:", error);
         toast.error(error.error || "Assignment failed");
       }
     } catch (error) {
@@ -113,38 +117,109 @@ export default function RequestDetail() {
     }
   };
 
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+    setUpdating(true);
+    const toastId = toast.loading("Sending message...");
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await fetch(
+        `http://localhost:5000/api/requests/${id}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ message: newMessage }),
+        },
+      );
+      if (res.ok) {
+        const savedMsg = await res.json();
+        setMessages([...messages, savedMsg]);
+        setNewMessage("");
+        toast.success("Message sent", { id: toastId });
+      } else {
+        toast.error("Failed to send", { id: toastId });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Server error", { id: toastId });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleReopen = async () => {
+    if (
+      !confirm("Reopen this closed request? It will be set to 'In Progress'.")
+    )
+      return;
+    setUpdating(true);
+    const toastId = toast.loading("Reopening request...");
+    try {
+      const token = sessionStorage.getItem("token");
+      const res = await fetch(
+        `http://localhost:5000/api/requests/${id}/reopen`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (res.ok) {
+        const updated = await res.json();
+        setRequest(updated);
+        toast.success("Request reopened", { id: toastId });
+      } else {
+        toast.error("Failed to reopen", { id: toastId });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Server error", { id: toastId });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const getStatusClass = (status) => {
     if (status === "Pending") return styles.statusPending;
     if (status === "In Progress") return styles.statusInProgress;
-    return styles.statusResolved;
+    if (status === "Resolved") return styles.statusResolved;
+    if (status === "Closed") return styles.statusClosed;
+    return "";
   };
+  const formatDate = (dateString) => new Date(dateString).toLocaleString();
 
-  if (loading) {
+  if (loading)
     return (
-      <DashboardLayout role="admin" userName="Mnguni">
+      <DashboardLayout role="admin" userName="Admin">
         <FullPageLoader />
       </DashboardLayout>
     );
-  }
-
-  if (!request) {
+  if (!request)
     return (
-      <DashboardLayout role="admin" userName="Mnguni">
+      <DashboardLayout role="admin" userName="Admin">
         <div className={styles.card}>Request not found.</div>
       </DashboardLayout>
     );
-  }
+
+  const isClosed = request.status === "Closed";
+
   return (
     <DashboardLayout role="admin" userName="Mnguni">
       <div className={styles.pageHeader}>
         <button onClick={() => router.back()} className={styles.secondaryBtn}>
-          ← Back to Dashboard
+          ← Back
         </button>
         <h1 className={styles.pageTitle}>Request #{request.id}</h1>
       </div>
 
       <div className={styles.detailGrid}>
-        {/* Left Column: Request Info */}
+        {/* Left – Info */}
         <div className={styles.detailCard}>
           <h3>Request Information</h3>
           <div className={styles.detailRow}>
@@ -173,50 +248,29 @@ export default function RequestDetail() {
           </div>
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Reported:</span>
-            <span>{new Date(request.created_at).toLocaleString()}</span>
+            <span>{formatDate(request.created_at)}</span>
           </div>
-          {/* Image Preview */}
+          <div className={styles.detailRow}>
+            <span className={styles.detailLabel}>Status:</span>
+            <span className={getStatusClass(request.status)}>
+              {request.status}
+            </span>
+          </div>
           {request.image_url && (
             <div className={styles.imagePreview}>
-              <span className={styles.detailLabel}>Attached Image:</span>
-              <div style={{ marginTop: "10px" }}>
-                <img
-                  src={`http://localhost:5000${request.image_url}`}
-                  alt="Maintenance issue"
-                  style={{
-                    maxWidth: "100%",
-                    maxHeight: "300px",
-                    borderRadius: "8px",
-                    border: "1px solid #ddd",
-                    objectFit: "contain",
-                  }}
-                  onError={(e) => {
-                    console.error(
-                      "Image failed to load:",
-                      `http://localhost:5000${request.image_url}`,
-                    );
-                    e.target.style.display = "none";
-                    e.target.parentElement.innerHTML += `
-            <div style="padding: 20px; background: #fee2e2; border-radius: 8px; color: #991b1b;">
-              <strong>⚠️ Image failed to load</strong><br/>
-              Path: ${request.image_url}<br/>
-              Full URL: http://localhost:5000${request.image_url}
-            </div>
-          `;
-                  }}
-                  onLoad={() =>
-                    console.log("Image loaded successfully:", request.image_url)
-                  }
-                />
-              </div>
+              <span className={styles.detailLabel}>Image:</span>
+              <img
+                src={`http://localhost:5000${request.image_url}`}
+                alt="Issue"
+                className={styles.requestImage}
+                onError={(e) => (e.target.style.display = "none")}
+              />
             </div>
           )}
         </div>
 
-        {/* Right Column: Actions */}
+        {/* Right – Actions & Messages */}
         <div className={styles.detailCard}>
-          <h3>Actions</h3>
-
           <div className={styles.formGroup}>
             <label>Status</label>
             <select
@@ -247,15 +301,76 @@ export default function RequestDetail() {
               ))}
             </select>
           </div>
-
           {request.staff_name && (
             <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Currently assigned to:</span>
+              <span className={styles.detailLabel}>Current:</span>
               <span>
                 {request.staff_name} ({request.staff_role})
               </span>
             </div>
           )}
+
+          {isClosed && (
+            <button
+              onClick={handleReopen}
+              className={styles.warningBtn}
+              style={{ marginTop: "16px", width: "100%" }}
+            >
+              Reopen Request
+            </button>
+          )}
+
+          <hr style={{ margin: "24px 0" }} />
+
+          <h3>Conversation</h3>
+          {/* Messages – WhatsApp style */}
+          <div className={styles.messagesContainer}>
+            {messages.length === 0 && (
+              <p
+                style={{
+                  textAlign: "center",
+                  color: "#666",
+                  fontStyle: "italic",
+                }}
+              >
+                No messages yet. Start the conversation.
+              </p>
+            )}
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`${styles.messageItem} ${msg.is_from_student ? styles.studentMessage : styles.adminMessage}`}
+              >
+                <div className={styles.messageBubble}>
+                  <div className={styles.messageHeader}>
+                    <strong>{msg.user_name}</strong>
+                    <span style={{ fontSize: "10px", color: "#888" }}>
+                      {formatDate(msg.created_at)}
+                    </span>
+                  </div>
+                  <p className={styles.messageText}>{msg.message}</p>
+                  {/* Optional: add read/delivered icons, but keep simple */}
+                </div>
+              </div>
+            ))}
+          </div>
+          <form onSubmit={handleSendMessage} className={styles.messageForm}>
+            <textarea
+              rows={2}
+              placeholder="Reply to student..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              className={styles.messageInput}
+              disabled={updating}
+            />
+            <button
+              type="submit"
+              className={styles.secondaryBtn}
+              disabled={updating}
+            >
+              Send Message
+            </button>
+          </form>
         </div>
       </div>
     </DashboardLayout>

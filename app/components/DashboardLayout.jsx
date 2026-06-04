@@ -12,8 +12,8 @@ export default function DashboardLayout({ children, role }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
+    const token = sessionStorage.getItem("token");
+    const userData = sessionStorage.getItem("user");
 
     if (!token || !userData) {
       router.push("/login");
@@ -29,14 +29,14 @@ export default function DashboardLayout({ children, role }) {
       })
         .then((res) => {
           if (!res.ok) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
+            sessionStorage.removeItem("token");
+            sessionStorage.removeItem("user");
             router.push("/login");
           }
         })
         .catch(() => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("user");
           router.push("/login");
         });
     } catch (e) {

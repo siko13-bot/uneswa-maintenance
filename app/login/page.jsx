@@ -30,8 +30,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("user", JSON.stringify(data.user));
 
         // Redirect based on role
         if (data.user.role === "admin") {

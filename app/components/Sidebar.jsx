@@ -88,8 +88,8 @@ export default function Sidebar({ role }) {
       {/* Logout button – never active */}
       <button
         onClick={() => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("user");
           window.location.href = "/login";
         }}
         className={`${styles.navItem} ${styles.btnClass}`}

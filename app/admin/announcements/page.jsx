@@ -19,7 +19,7 @@ export default function AdminAnnouncements() {
   // Fetch announcements from database
   const fetchAnnouncements = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const res = await fetch("http://localhost:5000/api/announcements", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -48,7 +48,7 @@ export default function AdminAnnouncements() {
     const toastId = toast.loading("Posting announcement...");
 
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const res = await fetch("http://localhost:5000/api/announcements", {
         method: "POST",
         headers: {
@@ -77,7 +77,7 @@ export default function AdminAnnouncements() {
   const deleteAnnouncement = async (id) => {
     const toastId = toast.loading("Deleting announcement...");
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const res = await fetch(`http://localhost:5000/api/announcements/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
