@@ -804,17 +804,12 @@
 }
 
 .messageItem {
-  background: white;
+  background: transparent;
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  border-left: 4px solid #1e60a4;
 }
 
-.studentMessage {
-  border-left-color: #28a745;
-}
 .adminMessage {
   border-left-color: #f39c12;
 }
@@ -854,45 +849,94 @@
 .actionButtons {
   display: flex;
   gap: 12px;
-  margin-top: 20px;
+  margin-top: 24px;
   flex-wrap: wrap;
+  align-items: stretch;
 }
-.dangerBtn {
-  background: #e74c3c;
-  color: white;
+
+/* Shared button styling */
+.actionButtons button {
+  flex: 1 1 220px;
+  min-height: 50px;
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-.dangerBtn:hover {
-  background: #c0392b;
-}
-.warningBtn {
-  background: #f39c12;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-}
-.warningBtn:hover {
-  background: #e67e22;
-}
-.closedNotice {
-  background: #d4edda;
-  color: #155724;
-  padding: 12px;
-  border-radius: 8px;
-  margin-top: 20px;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  padding: 6px 12px;
 }
+
+/* Confirm Resolution */
+.primaryBtn {
+  background: linear-gradient(135deg, #28a745, #218838);
+  color: white;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.25);
+}
+
+.primaryBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(40, 167, 69, 0.35);
+}
+
+/* Report Incomplete */
+.dangerBtn {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.25);
+}
+
+.dangerBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(231, 76, 60, 0.35);
+}
+
+/* Optional warning button */
+.warningBtn {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  color: white;
+  box-shadow: 0 4px 12px rgba(243, 156, 18, 0.25);
+}
+
+.warningBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(243, 156, 18, 0.35);
+}
+
+/* Closed ticket message */
+.closedNotice {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  color: #1b5e20;
+  text-align: center;
+  font-weight: 500;
+}
+
 .statusClosed {
   background: #6c757d;
   color: white;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Mobile layout */
+@media (max-width: 768px) {
+  .actionButtons {
+    flex-direction: column;
+  }
+
+  .actionButtons button {
+    width: 100%;
+  }
 }
 /* ===== CHAT / MESSAGES (WhatsApp style) ===== */
 .messagesContainer {
