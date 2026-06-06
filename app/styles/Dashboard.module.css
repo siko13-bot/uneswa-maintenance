@@ -1034,3 +1034,32 @@
     transform: translateY(0);
   }
 }
+/* Reopen Button – Warning Style */
+.reopenBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f59e0b; /* Amber / warning color */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 40px; /* Pill shape, modern */
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin-top: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.reopenBtn:hover {
+  background: #d97706; /* Darker amber on hover */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reopenBtn:active {
+  transform: translateY(0);
+}

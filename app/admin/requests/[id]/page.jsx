@@ -311,12 +311,8 @@ export default function AdminRequestDetail() {
           )}
 
           {isClosed && (
-            <button
-              onClick={handleReopen}
-              className={styles.warningBtn}
-              style={{ marginTop: "16px", width: "100%" }}
-            >
-              Reopen Request
+            <button onClick={handleReopen} className={styles.reopenBtn}>
+              🔄 Reopen Request
             </button>
           )}
 

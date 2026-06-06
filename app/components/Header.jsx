@@ -35,46 +35,93 @@ export default function Header({ role }) {
     fetchProfile();
   }, []);
 
-  // Fetch announcements as notifications
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const token = sessionStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/announcements", {
+  // Fetch notifications — different source per role
+  const fetchNotifications = async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+      let data = [];
+
+      if (role === "student") {
+        // Student: fetch their own requests and surface status changes
+        const res = await fetch(
+          `http://localhost:5000/api/requests/student/${user.id}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (res.ok) {
+          const requests = await res.json();
+          // Turn each request into a notification entry
+          data = requests.map((req) => ({
+            id: req.id,
+            title: `Request #${req.id} — ${req.status}`,
+            content: `${req.category} in ${req.room}`,
+            status: req.status,
+            updated_at: req.updated_at,
+            requestId: req.id,
+            type: "request",
+          }));
+        }
+      } else {
+        // Admin: fetch all requests, surface brand-new (Pending) ones
+        const res = await fetch("http://localhost:5000/api/requests", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
-          const data = await res.json();
-          setNotifications(data);
-
-          // Track unread using localStorage — persist per user
-          const storageKey = `notif_read_${profile?.id || "user"}`;
-          const lastRead = parseInt(localStorage.getItem(storageKey) || "0");
-          const unread = data.filter(
-            (n) => new Date(n.created_at).getTime() > lastRead,
-          ).length;
-          setUnreadCount(unread);
+          const requests = await res.json();
+          data = requests
+            .filter((req) => req.status === "Pending")
+            .map((req) => ({
+              id: req.id,
+              title: `New request from ${req.student_name}`,
+              content: `${req.category} in ${req.room}`,
+              status: req.status,
+              updated_at: req.created_at,
+              requestId: req.id,
+              type: "new_request",
+            }));
         }
-      } catch (err) {
-        console.error("Notifications fetch error", err);
       }
-    };
 
+      setNotifications(data);
+
+      // Unread = anything updated/created since last bell click
+      const storageKey = `notif_read_${user.id || "user"}_${role}`;
+      const lastRead = parseInt(localStorage.getItem(storageKey) || "0");
+      const unread = data.filter(
+        (n) => new Date(n.updated_at).getTime() > lastRead,
+      ).length;
+      setUnreadCount(unread);
+    } catch (err) {
+      console.error("Notifications fetch error", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!profile) return;
     fetchNotifications();
-    // Poll every 60 seconds for new announcements
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
-  }, [profile?.id]);
+  }, [profile, role]);
 
   const handleBellClick = () => {
-    setShowNotifications((prev) => !prev);
+    const opening = !showNotifications;
+    setShowNotifications(opening);
     setShowResults(false);
 
-    // Mark all as read
-    if (!showNotifications) {
-      const storageKey = `notif_read_${profile?.id || "user"}`;
+    if (opening) {
+      const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+      const storageKey = `notif_read_${user.id || "user"}_${role}`;
       localStorage.setItem(storageKey, Date.now().toString());
       setUnreadCount(0);
+    }
+  };
+
+  const handleNotifClick = (notif) => {
+    setShowNotifications(false);
+    if (role === "student") {
+      router.push(`/student/requests/${notif.requestId}`);
+    } else {
+      router.push(`/admin/requests/${notif.requestId}`);
     }
   };
 
@@ -124,12 +171,20 @@ export default function Header({ role }) {
     );
   };
 
-  const formatNotifDate = (dateString) =>
+  const formatDate = (dateString) =>
     new Date(dateString).toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
+
+  const getStatusDot = (status) => {
+    if (status === "Pending") return styles.dotPending;
+    if (status === "In Progress") return styles.dotInProgress;
+    if (status === "Resolved") return styles.dotResolved;
+    if (status === "Closed") return styles.dotClosed;
+    return "";
+  };
 
   const initials =
     profile?.name
@@ -137,6 +192,9 @@ export default function Header({ role }) {
       .map((w) => w[0])
       .join("")
       .toUpperCase() || "U";
+
+  const dropdownTitle =
+    role === "admin" ? "New student requests" : "My request updates";
 
   return (
     <header className={styles.header}>
@@ -199,38 +257,56 @@ export default function Header({ role }) {
           {showNotifications && (
             <div className={styles.notifDropdown}>
               <div className={styles.notifHeader}>
-                <span>Announcements</span>
+                <span>{dropdownTitle}</span>
                 <span className={styles.notifCount}>
                   {notifications.length}
                 </span>
               </div>
+
               <div className={styles.notifList}>
                 {notifications.length === 0 ? (
-                  <div className={styles.notifEmpty}>No announcements</div>
+                  <div className={styles.notifEmpty}>
+                    {role === "admin"
+                      ? "No pending requests"
+                      : "No request updates"}
+                  </div>
                 ) : (
                   notifications.map((n) => (
-                    <div key={n.id} className={styles.notifItem}>
-                      <div className={styles.notifTitle}>{n.title}</div>
+                    <div
+                      key={n.id}
+                      className={styles.notifItem}
+                      onClick={() => handleNotifClick(n)}
+                    >
+                      <div className={styles.notifItemTop}>
+                        <span
+                          className={`${styles.statusDot} ${getStatusDot(n.status)}`}
+                        />
+                        <span className={styles.notifTitle}>{n.title}</span>
+                      </div>
                       <div className={styles.notifContent}>{n.content}</div>
                       <div className={styles.notifMeta}>
-                        {formatNotifDate(n.created_at)}
-                        {n.author_name && ` · ${n.author_name}`}
+                        {formatDate(n.updated_at)}
                       </div>
                     </div>
                   ))
                 )}
               </div>
-              {role === "student" && (
-                <div
-                  className={styles.notifFooter}
-                  onClick={() => {
-                    setShowNotifications(false);
-                    router.push("/student/announcements");
-                  }}
-                >
-                  View all announcements →
-                </div>
-              )}
+
+              <div
+                className={styles.notifFooter}
+                onClick={() => {
+                  setShowNotifications(false);
+                  router.push(
+                    role === "student"
+                      ? "/student/requests"
+                      : "/admin/requests",
+                  );
+                }}
+              >
+                {role === "admin"
+                  ? "View all requests →"
+                  : "View all my requests →"}
+              </div>
             </div>
           )}
         </div>

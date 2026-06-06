@@ -502,6 +502,45 @@ app.get("/api/staff", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+app.get("/api/requests/search", authenticateToken, async (req, res) => {
+  const { q } = req.query;
+
+  if (!q || !q.trim()) {
+    return res.json([]);
+  }
+
+  try {
+    const searchTerm = `%${q.trim().toLowerCase()}%`;
+
+    const result = await pool.query(
+      `SELECT 
+        r.id,
+        r.category,
+        r.room,
+        r.description,
+        r.status,
+        r.urgency,
+        r.created_at,
+        u.name AS student_name
+       FROM requests r
+       LEFT JOIN users u ON r.student_id = u.id
+       WHERE 
+         LOWER(r.category)      LIKE $1 OR
+         LOWER(r.room)          LIKE $1 OR
+         LOWER(r.description)   LIKE $1 OR
+         LOWER(u.name)          LIKE $1 OR
+         CAST(r.id AS TEXT)     LIKE $1
+       ORDER BY r.created_at DESC
+       LIMIT 5`,
+      [searchTerm],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Search error:", err.message);
+    res.status(500).json({ error: "Search failed" });
+  }
+});
 // GET single request by ID (with staff info)
 app.get("/api/requests/:id", async (req, res) => {
   try {
