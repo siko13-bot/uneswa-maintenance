@@ -61,14 +61,14 @@ export default function Sidebar({ role }) {
         )}
 
         {/* Admin only: Hostel Audits */}
-        {role === "admin" && (
+        {/* {role === "admin" && (
           <Link
             href="/admin/audit"
             className={`${styles.navItem} ${isActive("/admin/audit") ? styles.active : ""}`}
           >
             <ClipboardList size={20} /> Hostel Audits
           </Link>
-        )}
+        )} */}
 
         {/* Common links */}
         <Link

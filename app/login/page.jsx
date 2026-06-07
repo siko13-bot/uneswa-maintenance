@@ -55,7 +55,7 @@ export default function LoginPage() {
   return (
     <div className={styles.loginContainer}>
       <div className={styles.loginCard}>
-        <div className={styles.logo}>UNESWA Maintenance System</div>
+        <div className={styles.logo}>UNESWA Maintenance Management System</div>
         <h2>Login</h2>
 
         {error && <div className={styles.errorMessage}>{error}</div>}

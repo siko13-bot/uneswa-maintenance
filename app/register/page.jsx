@@ -48,7 +48,7 @@ export default function RegisterPage() {
   return (
     <div className={styles.loginContainer}>
       <div className={styles.loginCard}>
-        <div className={styles.logo}>UNESWA Maintenance System</div>
+        <div className={styles.logo}>UNESWA Maintenance Management System</div>
         <h2>Student Registration</h2>
 
         {error && <div className={styles.errorMessage}>{error}</div>}

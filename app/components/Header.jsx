@@ -199,7 +199,7 @@ export default function Header({ role }) {
   return (
     <header className={styles.header}>
       <div className={styles.headerTitle}>
-        <h3>Residence Maintenance System</h3>
+        <h3>Residence Maintenance Management System</h3>
       </div>
 
       <div className={styles.headerRight}>
