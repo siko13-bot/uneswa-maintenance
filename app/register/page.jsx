@@ -66,23 +66,18 @@ export default function RegisterPage() {
               }
             />
           </div>
-
           <div className={styles.formGroup}>
             <label>Student ID</label>
             <input
               type="text"
               required
-              placeholder="2022xxx"
-              value={formData.email}
+              placeholder="e.g., 202400123"
+              value={formData.studentId}
               onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
+                setFormData({ ...formData, studentId: e.target.value })
               }
             />
-            <small className={styles.microCopy}>
-              Use your university's student ID
-            </small>
           </div>
-
           <div className={styles.formGroup}>
             <label>Password</label>
             <input
@@ -95,7 +90,6 @@ export default function RegisterPage() {
               }
             />
           </div>
-
           <div className={styles.formGroup}>
             <label>Confirm Password</label>
             <input
@@ -108,7 +102,6 @@ export default function RegisterPage() {
               }
             />
           </div>
-
           <button type="submit" className={styles.loginBtn} disabled={loading}>
             {loading ? "Registering..." : "Register"}
           </button>

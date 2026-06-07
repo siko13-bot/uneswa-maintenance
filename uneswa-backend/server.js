@@ -26,36 +26,26 @@ const JWT_SECRET =
 // Login endpoint
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password, role } = req.body; // email now = student ID
 
-    // Query from users table only
     const result = await pool.query(
       "SELECT id, name, email, password, role FROM users WHERE email = $1 AND role = $2",
       [email, role],
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: "Invalid email or role" });
+      return res.status(401).json({ error: "Invalid student ID or role" });
     }
 
     const user = result.rows[0];
-
-    // TEMPORARY: For testing with plain text password 'password123'
-    // In production, use bcrypt.compare
-    const isValid = password === "password123";
+    const isValid = password === "password123"; // TEMP – replace with bcrypt compare in production
 
     if (!isValid) {
       return res.status(401).json({ error: "Invalid password" });
     }
 
-    // Generate JWT token
     const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
+      { id: user.id, email: user.email, name: user.name, role: user.role },
       JWT_SECRET,
       { expiresIn: "24h" },
     );
@@ -79,13 +69,12 @@ app.post("/api/auth/login", async (req, res) => {
 // ==========================================
 // REGISTRATION ROUTE (Student only)
 // ==========================================
-
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { name, email, password, confirmPassword } = req.body;
+    const { name, studentId, password, confirmPassword } = req.body;
 
     // Validation
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !studentId || !password || !confirmPassword) {
       return res.status(400).json({ error: "All fields are required" });
     }
     if (password !== confirmPassword) {
@@ -97,13 +86,13 @@ app.post("/api/auth/register", async (req, res) => {
         .json({ error: "Password must be at least 6 characters" });
     }
 
-    // Check if email already exists
+    // Check if student ID already exists (use email column)
     const existingUser = await pool.query(
       "SELECT id FROM users WHERE email = $1",
-      [email],
+      [studentId],
     );
     if (existingUser.rows.length > 0) {
-      return res.status(409).json({ error: "Email already registered" });
+      return res.status(409).json({ error: "Student ID already registered" });
     }
 
     // Hash password
@@ -113,7 +102,7 @@ app.post("/api/auth/register", async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users (name, email, password, role) 
        VALUES ($1, $2, $3, $4) RETURNING id, name, email, role`,
-      [name, email, hashedPassword, "student"],
+      [name, studentId, hashedPassword, "student"],
     );
 
     res.status(201).json({

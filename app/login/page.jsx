@@ -62,11 +62,11 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
-            <label>Student ID</label>
+            <label>Student ID </label>
             <input
               type="text"
               required
-              placeholder="2022xxxx"
+              placeholder="Enter your student ID"
               value={formData.email}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
@@ -112,8 +112,8 @@ export default function LoginPage() {
         </div>
         <div className={styles.demoCredentials}>
           <p>Demo Credentials:</p>
-          <small>Student: siphe@student.uneswa.sz / password123</small>
-          <small>Admin/Warden: mnguni@admin.uneswa.sz / password123</small>
+          <small>Student: 2024001 / password123</small>
+          <small>Admin: admin@uneswa.sz / password123</small>
         </div>
       </div>
     </div>
