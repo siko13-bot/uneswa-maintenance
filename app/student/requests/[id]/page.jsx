@@ -1,22 +1,29 @@
 // src/app/student/requests/[id]/page.js
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import DashboardLayout from "../../../components/DashboardLayout";
 import styles from "../../../styles/Dashboard.module.css";
 import Spinner from "../../../components/Spinner";
 import toast from "react-hot-toast";
+import { useMessagePolling } from "../../../hooks/useMessagePolling";
 
 export default function StudentRequestDetail() {
   const { id } = useParams();
   const router = useRouter();
   const [request, setRequest] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState("");
 
-  // Fetch request and messages
+  // Initial messages loaded separately so the hook can take over
+  const [initialMessages, setInitialMessages] = useState([]);
+  const [initLoaded, setInitLoaded] = useState(false);
+
+  // Auto-scroll ref
+  const messagesEndRef = useRef(null);
+
+  // ── Initial data fetch ───────────────────────────────────────────
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
@@ -31,10 +38,9 @@ export default function StudentRequestDetail() {
           }),
         ]);
         if (reqRes.ok && msgRes.ok) {
-          const reqData = await reqRes.json();
-          const msgData = await msgRes.json();
-          setRequest(reqData);
-          setMessages(msgData);
+          setRequest(await reqRes.json());
+          setInitialMessages(await msgRes.json());
+          setInitLoaded(true);
         } else if (reqRes.status === 401) {
           router.push("/login");
         } else {
@@ -51,7 +57,18 @@ export default function StudentRequestDetail() {
     fetchData();
   }, [id, router]);
 
-  // Send a message
+  // ── Live polling (starts only after initial load) ────────────────
+  const { messages, setMessages } = useMessagePolling(
+    initLoaded ? id : null,
+    initialMessages,
+  );
+
+  // ── Auto-scroll whenever messages change ─────────────────────────
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // ── Handlers ─────────────────────────────────────────────────────
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
@@ -72,21 +89,23 @@ export default function StudentRequestDetail() {
       );
       if (res.ok) {
         const savedMsg = await res.json();
-        setMessages([...messages, savedMsg]);
+        // Add optimistically — polling deduplicates automatically
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === savedMsg.id);
+          return exists ? prev : [...prev, savedMsg];
+        });
         setNewMessage("");
         toast.success("Message sent", { id: toastId });
       } else {
         toast.error("Failed to send", { id: toastId });
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Server error", { id: toastId });
     } finally {
       setSending(false);
     }
   };
 
-  // Confirm resolution (closes ticket)
   const handleConfirmResolution = async () => {
     if (!confirm("Mark this issue as fully closed? This cannot be undone."))
       return;
@@ -105,19 +124,16 @@ export default function StudentRequestDetail() {
         },
       );
       if (res.ok) {
-        const updated = await res.json();
-        setRequest(updated);
+        setRequest(await res.json());
         toast.success("Request closed. Thank you!", { id: toastId });
       } else {
         toast.error("Failed to close", { id: toastId });
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Server error", { id: toastId });
     }
   };
 
-  // Report still incomplete – sends a message and keeps status resolved
   const handleReportIncomplete = async () => {
     const reportMsg = prompt(
       "Please describe what is still not working or incomplete:",
@@ -140,20 +156,24 @@ export default function StudentRequestDetail() {
       );
       if (res.ok) {
         const savedMsg = await res.json();
-        setMessages([...messages, savedMsg]);
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === savedMsg.id);
+          return exists ? prev : [...prev, savedMsg];
+        });
         toast.success("Report sent. Admin has been notified.", { id: toastId });
       } else {
         toast.error("Failed to send", { id: toastId });
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Server error", { id: toastId });
     } finally {
       setSending(false);
     }
   };
 
-  const formatDate = (dateString) => new Date(dateString).toLocaleString();
+  // ── Helpers ──────────────────────────────────────────────────────
+  const formatDate = (d) => new Date(d).toLocaleString();
+
   const getStatusClass = (status) => {
     if (status === "Pending") return styles.statusPending;
     if (status === "In Progress") return styles.statusInProgress;
@@ -162,6 +182,7 @@ export default function StudentRequestDetail() {
     return "";
   };
 
+  // ── Render guards ─────────────────────────────────────────────────
   if (loading) {
     return (
       <DashboardLayout role="student" userName="Student">
@@ -178,6 +199,7 @@ export default function StudentRequestDetail() {
   const isResolved = request.status === "Resolved";
   const isClosed = request.status === "Closed";
 
+  // ── JSX ───────────────────────────────────────────────────────────
   return (
     <DashboardLayout
       role="student"
@@ -191,9 +213,10 @@ export default function StudentRequestDetail() {
       </div>
 
       <div className={styles.detailGrid}>
-        {/* Left – Request Info */}
+        {/* ── Left: Request info ── */}
         <div className={styles.detailCard}>
           <h3>Request Information</h3>
+
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Category:</span>
             <span>{request.category}</span>
@@ -224,6 +247,7 @@ export default function StudentRequestDetail() {
               {request.status}
             </span>
           </div>
+
           {request.staff_name && (
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Assigned to:</span>
@@ -232,6 +256,7 @@ export default function StudentRequestDetail() {
               </span>
             </div>
           )}
+
           {request.image_url && (
             <div className={styles.imagePreview}>
               <span className={styles.detailLabel}>Attached Image:</span>
@@ -245,10 +270,46 @@ export default function StudentRequestDetail() {
           )}
         </div>
 
-        {/* Right – Messages & Actions */}
+        {/* ── Right: Messages & actions ── */}
         <div className={styles.detailCard}>
-          <h3>Messages</h3>
-          {/* Messages – WhatsApp style */}
+          {/* Conversation heading with live indicator */}
+          <h3
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            Messages
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#27ae60",
+                background: "#e9f7ef",
+                padding: "2px 8px",
+                borderRadius: 999,
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "#27ae60",
+                  display: "inline-block",
+                  animation: "livePulse 2s infinite",
+                }}
+              />
+              Live
+            </span>
+          </h3>
+
+          {/* Message list */}
           <div className={styles.messagesContainer}>
             {messages.length === 0 && (
               <p
@@ -264,23 +325,28 @@ export default function StudentRequestDetail() {
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`${styles.messageItem} ${msg.is_from_student ? styles.studentMessage : styles.adminMessage}`}
+                className={`${styles.messageItem} ${
+                  msg.is_from_student
+                    ? styles.studentMessage
+                    : styles.adminMessage
+                }`}
               >
                 <div className={styles.messageBubble}>
                   <div className={styles.messageHeader}>
                     <strong>{msg.user_name}</strong>
-                    <span style={{ fontSize: "10px", color: "#888" }}>
+                    <span style={{ fontSize: 10, color: "#888" }}>
                       {formatDate(msg.created_at)}
                     </span>
                   </div>
                   <p className={styles.messageText}>{msg.message}</p>
-                  {/* Optional: add read/delivered icons, but keep simple */}
                 </div>
               </div>
             ))}
+            {/* Auto-scroll anchor */}
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Send message form */}
+          {/* Send form */}
           <form onSubmit={handleSendMessage} className={styles.messageForm}>
             <textarea
               rows={2}
@@ -299,7 +365,7 @@ export default function StudentRequestDetail() {
             </button>
           </form>
 
-          {/* Resolution actions (only when status = Resolved) */}
+          {/* Resolution actions */}
           {isResolved && (
             <div className={styles.actionButtons}>
               <button
@@ -326,6 +392,14 @@ export default function StudentRequestDetail() {
           )}
         </div>
       </div>
+
+      {/* Pulse keyframe — scoped to this page */}
+      <style>{`
+        @keyframes livePulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.25; }
+        }
+      `}</style>
     </DashboardLayout>
   );
 }

@@ -68,18 +68,18 @@ export default function RegisterPage() {
           </div>
 
           <div className={styles.formGroup}>
-            <label>Email Address</label>
+            <label>Student ID</label>
             <input
-              type="email"
+              type="text"
               required
-              placeholder="student@student.uneswa.sz"
+              placeholder="2022xxx"
               value={formData.email}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
             />
             <small className={styles.microCopy}>
-              Use your university email address
+              Use your university's student ID
             </small>
           </div>
 

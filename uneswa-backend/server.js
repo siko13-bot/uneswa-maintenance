@@ -1132,9 +1132,10 @@ app.post("/api/requests/:id/messages", authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/requests/:id/messages – Fetch all messages for a request
+// GET /api/requests/:id/messages
 app.get("/api/requests/:id/messages", authenticateToken, async (req, res) => {
   const { id } = req.params;
+  const { after } = req.query; // ← ADD: optional "after message id"
   const userId = req.user.id;
   const userRole = req.user.role;
 
@@ -1143,21 +1144,22 @@ app.get("/api/requests/:id/messages", authenticateToken, async (req, res) => {
       "SELECT student_id FROM requests WHERE id = $1",
       [id],
     );
-    if (reqCheck.rows.length === 0) {
+    if (reqCheck.rows.length === 0)
       return res.status(404).json({ error: "Request not found" });
-    }
-    if (userRole === "student" && reqCheck.rows[0].student_id !== userId) {
+    if (userRole === "student" && reqCheck.rows[0].student_id !== userId)
       return res.status(403).json({ error: "Not your request" });
-    }
 
+    // If ?after=N is provided, only return messages newer than that id
     const messages = await pool.query(
       `SELECT m.*, u.name as user_name
        FROM request_messages m
        JOIN users u ON m.user_id = u.id
        WHERE m.request_id = $1
+       ${after ? "AND m.id > $2" : ""}
        ORDER BY m.created_at ASC`,
-      [id],
+      after ? [id, after] : [id],
     );
+
     res.json(messages.rows);
   } catch (err) {
     console.error(err.message);

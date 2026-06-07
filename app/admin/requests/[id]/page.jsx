@@ -1,22 +1,30 @@
 // src/app/admin/requests/[id]/page.js
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import DashboardLayout from "../../../components/DashboardLayout";
 import styles from "../../../styles/Dashboard.module.css";
 import toast from "react-hot-toast";
-import Spinner, { FullPageLoader } from "../../../components/Spinner";
+import { FullPageLoader } from "../../../components/Spinner";
+import { useMessagePolling } from "../../../hooks/useMessagePolling";
 
 export default function AdminRequestDetail() {
   const { id } = useParams();
   const router = useRouter();
   const [request, setRequest] = useState(null);
   const [staffList, setStaffList] = useState([]);
-  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [newMessage, setNewMessage] = useState("");
 
+  // Initial messages loaded separately so the hook can take over
+  const [initialMessages, setInitialMessages] = useState([]);
+  const [initLoaded, setInitLoaded] = useState(false);
+
+  // Auto-scroll ref
+  const messagesEndRef = useRef(null);
+
+  // ── Initial data fetch ───────────────────────────────────────────
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
@@ -34,12 +42,10 @@ export default function AdminRequestDetail() {
           }),
         ]);
         if (reqRes.ok && staffRes.ok && msgRes.ok) {
-          const reqData = await reqRes.json();
-          const staffData = await staffRes.json();
-          const msgData = await msgRes.json();
-          setRequest(reqData);
-          setStaffList(staffData);
-          setMessages(msgData);
+          setRequest(await reqRes.json());
+          setStaffList(await staffRes.json());
+          setInitialMessages(await msgRes.json());
+          setInitLoaded(true);
         } else {
           toast.error("Failed to load request details");
           router.push("/admin");
@@ -54,6 +60,18 @@ export default function AdminRequestDetail() {
     fetchData();
   }, [id, router]);
 
+  // ── Live polling (starts only after initial load) ────────────────
+  const { messages, setMessages } = useMessagePolling(
+    initLoaded ? id : null,
+    initialMessages,
+  );
+
+  // ── Auto-scroll whenever messages change ─────────────────────────
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // ── Handlers ─────────────────────────────────────────────────────
   const handleStatusChange = async (newStatus) => {
     setUpdating(true);
     try {
@@ -70,15 +88,13 @@ export default function AdminRequestDetail() {
         },
       );
       if (res.ok) {
-        const updated = await res.json();
-        setRequest(updated);
+        setRequest(await res.json());
         toast.success("Status updated");
       } else {
-        const error = await res.json();
-        toast.error(error.error || "Update failed");
+        const err = await res.json();
+        toast.error(err.error || "Update failed");
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Server error");
     } finally {
       setUpdating(false);
@@ -102,15 +118,13 @@ export default function AdminRequestDetail() {
         },
       );
       if (res.ok) {
-        const updated = await res.json();
-        setRequest(updated);
+        setRequest(await res.json());
         toast.success("Staff assigned");
       } else {
-        const error = await res.json();
-        toast.error(error.error || "Assignment failed");
+        const err = await res.json();
+        toast.error(err.error || "Assignment failed");
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Server error");
     } finally {
       setUpdating(false);
@@ -137,14 +151,17 @@ export default function AdminRequestDetail() {
       );
       if (res.ok) {
         const savedMsg = await res.json();
-        setMessages([...messages, savedMsg]);
+        // Add optimistically — polling deduplicates automatically
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === savedMsg.id);
+          return exists ? prev : [...prev, savedMsg];
+        });
         setNewMessage("");
         toast.success("Message sent", { id: toastId });
       } else {
         toast.error("Failed to send", { id: toastId });
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Server error", { id: toastId });
     } finally {
       setUpdating(false);
@@ -171,20 +188,19 @@ export default function AdminRequestDetail() {
         },
       );
       if (res.ok) {
-        const updated = await res.json();
-        setRequest(updated);
+        setRequest(await res.json());
         toast.success("Request reopened", { id: toastId });
       } else {
         toast.error("Failed to reopen", { id: toastId });
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Server error", { id: toastId });
     } finally {
       setUpdating(false);
     }
   };
 
+  // ── Helpers ──────────────────────────────────────────────────────
   const getStatusClass = (status) => {
     if (status === "Pending") return styles.statusPending;
     if (status === "In Progress") return styles.statusInProgress;
@@ -192,8 +208,10 @@ export default function AdminRequestDetail() {
     if (status === "Closed") return styles.statusClosed;
     return "";
   };
-  const formatDate = (dateString) => new Date(dateString).toLocaleString();
 
+  const formatDate = (d) => new Date(d).toLocaleString();
+
+  // ── Render guards ─────────────────────────────────────────────────
   if (loading)
     return (
       <DashboardLayout role="admin" userName="Admin">
@@ -209,6 +227,7 @@ export default function AdminRequestDetail() {
 
   const isClosed = request.status === "Closed";
 
+  // ── JSX ───────────────────────────────────────────────────────────
   return (
     <DashboardLayout role="admin" userName="Mnguni">
       <div className={styles.pageHeader}>
@@ -219,9 +238,10 @@ export default function AdminRequestDetail() {
       </div>
 
       <div className={styles.detailGrid}>
-        {/* Left – Info */}
+        {/* ── Left: Request info ── */}
         <div className={styles.detailCard}>
           <h3>Request Information</h3>
+
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Student:</span>
             <span>{request.student_name}</span>
@@ -256,6 +276,7 @@ export default function AdminRequestDetail() {
               {request.status}
             </span>
           </div>
+
           {request.image_url && (
             <div className={styles.imagePreview}>
               <span className={styles.detailLabel}>Image:</span>
@@ -269,8 +290,9 @@ export default function AdminRequestDetail() {
           )}
         </div>
 
-        {/* Right – Actions & Messages */}
+        {/* ── Right: Actions + messages ── */}
         <div className={styles.detailCard}>
+          {/* Status selector */}
           <div className={styles.formGroup}>
             <label>Status</label>
             <select
@@ -285,6 +307,7 @@ export default function AdminRequestDetail() {
             </select>
           </div>
 
+          {/* Staff assignment */}
           <div className={styles.formGroup}>
             <label>Assign to Staff</label>
             <select
@@ -301,6 +324,7 @@ export default function AdminRequestDetail() {
               ))}
             </select>
           </div>
+
           {request.staff_name && (
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Current:</span>
@@ -311,15 +335,55 @@ export default function AdminRequestDetail() {
           )}
 
           {isClosed && (
-            <button onClick={handleReopen} className={styles.reopenBtn}>
-              🔄 Reopen Request
+            <button
+              onClick={handleReopen}
+              className={styles.warningBtn}
+              style={{ marginTop: 16, width: "100%" }}
+            >
+              Reopen Request
             </button>
           )}
 
           <hr style={{ margin: "24px 0" }} />
 
-          <h3>Conversation</h3>
-          {/* Messages – WhatsApp style */}
+          {/* Conversation heading with live indicator */}
+          <h3
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            Conversation
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#27ae60",
+                background: "#e9f7ef",
+                padding: "2px 8px",
+                borderRadius: 999,
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "#27ae60",
+                  display: "inline-block",
+                  animation: "livePulse 2s infinite",
+                }}
+              />
+              Live
+            </span>
+          </h3>
+
+          {/* Message list */}
           <div className={styles.messagesContainer}>
             {messages.length === 0 && (
               <p
@@ -335,21 +399,28 @@ export default function AdminRequestDetail() {
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`${styles.messageItem} ${msg.is_from_student ? styles.studentMessage : styles.adminMessage}`}
+                className={`${styles.messageItem} ${
+                  msg.is_from_student
+                    ? styles.studentMessage
+                    : styles.adminMessage
+                }`}
               >
                 <div className={styles.messageBubble}>
                   <div className={styles.messageHeader}>
                     <strong>{msg.user_name}</strong>
-                    <span style={{ fontSize: "10px", color: "#888" }}>
+                    <span style={{ fontSize: 10, color: "#888" }}>
                       {formatDate(msg.created_at)}
                     </span>
                   </div>
                   <p className={styles.messageText}>{msg.message}</p>
-                  {/* Optional: add read/delivered icons, but keep simple */}
                 </div>
               </div>
             ))}
+            {/* Auto-scroll anchor */}
+            <div ref={messagesEndRef} />
           </div>
+
+          {/* Send form */}
           <form onSubmit={handleSendMessage} className={styles.messageForm}>
             <textarea
               rows={2}
@@ -364,11 +435,19 @@ export default function AdminRequestDetail() {
               className={styles.secondaryBtn}
               disabled={updating}
             >
-              Send Message
+              {updating ? "Sending..." : "Send Message"}
             </button>
           </form>
         </div>
       </div>
+
+      {/* Pulse keyframe — scoped to this page */}
+      <style>{`
+        @keyframes livePulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.25; }
+        }
+      `}</style>
     </DashboardLayout>
   );
 }

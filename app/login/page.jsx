@@ -62,11 +62,11 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
-            <label>Email</label>
+            <label>Student ID</label>
             <input
-              type="email"
+              type="text"
               required
-              placeholder="email@uneswa.sz"
+              placeholder="2022xxxx"
               value={formData.email}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
