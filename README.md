@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏠 Hostel Maintenance Management System
+# Hostel Maintenance Management System
 
 ### Full-Stack Residence Maintenance Management System for University Hostels
 
