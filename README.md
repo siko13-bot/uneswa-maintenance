@@ -26,33 +26,28 @@ Built for university hostels, the system streamlines reporting of issues by stud
 
 # 📸 Application Screenshots
 
-> **Login Page**
+## 📸 Login & Registration
 
-> Save your login screenshot as `screenshots/login.png`
+<p align="center">
+  <img src="screenshots/registration.png" width="48%" alt="Registration Page" />
+  <img src="screenshots/login.png" width="48%" alt="Login Page" />
+</p>
 
-```md
-![Login Page](screenshots/login.png)
-```
+## Student Ticket Request
+
+![Student Dashboard](screenshots/student-ticket.png)
 
 ---
 
-> **Student Dashboard**
+## Student Dashboard
 
-> Save your dashboard screenshot as `screenshots/student-dashboard.png`
-
-```md
 ![Student Dashboard](screenshots/student-dashboard.png)
-```
 
 ---
 
-> **Admin Request Management**
+## Admin Request Management
 
-> Save your admin screenshot as `screenshots/admin-dashboard.png`
-
-```md
 ![Admin Dashboard](screenshots/admin-dashboard.png)
-```
 
 ---
 
@@ -384,7 +379,7 @@ http://localhost:3000
 
 ```text
 Student ID:
-2022xxxx
+20220001
 
 Password:
 password123
