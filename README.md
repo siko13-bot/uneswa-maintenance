@@ -26,7 +26,7 @@ Built for university hostels, the system streamlines reporting of issues by stud
 
 # 📸 Application Screenshots
 
-## 📸 Login & Registration
+## Login & Registration
 
 <p align="center">
   <img src="screenshots/registration.png" width="48%" alt="Registration Page" />
@@ -206,7 +206,7 @@ http://localhost:5000
 
 ---
 
-# 💻 Frontend Setup (Next.js)
+# Frontend Setup (Next.js)
 
 Open a **new terminal**.
 
@@ -347,7 +347,7 @@ CREATE TABLE audit_data (
 
 ---
 
-# ▶️ Running the Application
+# Running the Application
 
 1. Start PostgreSQL.
 
@@ -471,7 +471,7 @@ hostel-maintenance/
 
 ---
 
-# 🏗 System Workflow
+# System Workflow
 
 The application follows the workflow below.
 
@@ -617,7 +617,7 @@ The application has been tested for the following functionality.
 
 ---
 
-# 📚 Technologies Used
+# Technologies Used
 
 Frontend
 
@@ -649,11 +649,12 @@ Additional Libraries
 
 ---
 
-# 👨‍💻 Author
+# Authors
 
-**Sikolethu**
+**Sikolethu Mkhabela**
+**Seluleko Nkambule**
 
-Final Year Computer Science Student
+Final Year Computer Science Students
 
 University of Eswatini
 
@@ -673,7 +674,7 @@ Special thanks to:
 
 - University of Eswatini
 - Project Supervisor
-- Faculty of ICT
+- Faculty of Warden
 - Everyone who contributed feedback during development
 
 ---
